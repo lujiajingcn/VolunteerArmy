@@ -62,7 +62,7 @@
 ## 项目结构
 
 ```
-index.html            游戏本体（单文件，约 188 KB，含渲染层）
+index.html            游戏本体（单文件，约 184 KB，含渲染层）
 _devcheck/            Node 离线验证管线（不需要浏览器）
   extract.js          从 index.html 抽出内联脚本 → _all.js / _logic.js
   test.js             90 条单元断言（解析器、状态机、伤害链路、回归）
