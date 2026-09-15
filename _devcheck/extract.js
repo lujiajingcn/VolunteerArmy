@@ -17,5 +17,7 @@ fs.writeFileSync(path.join(__dirname, '_logic.js'), prefix +
   'updateFlow,updateVehicles,updateAlly,updatePlayer,updateEnemy,updateProjectiles,updateMines,' +
   'checkEnd,checkObjectives,endGame,triggerAmbush,spawnReinforcement,allyCentroid,allies,enemies,findCover,coverScore,wayPointAt,POINTS,CFG,' +
   'spawnBullet,updateProjectiles,losFire,losSight,losBlocked,coverProtect,damageUnit,damageVehicle,orderedToFire,explosion,makeUnit,' +
-  'visRange,ineffectiveTarget,canSee,dropBox,moveStep,allyTargetSelect,pickTargetByType,dist:null};\n');
+  'visRange,ineffectiveTarget,canSee,dropBox,moveStep,allyTargetSelect,pickTargetByType,dist:null,' +
+  'Sound,sfx,initAudio,bootAudio,updateAudio,startAmbient,setAmbientWeather,fadeAmbient,' +
+  'SYN,SND,SND_GAP,BOOM,listener,airCutoff};\n');
 console.log('extracted: all=' + code.length + ' chars, logic=' + prefix.length + ' chars');
