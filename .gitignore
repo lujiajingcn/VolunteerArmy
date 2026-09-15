@@ -6,6 +6,9 @@ _devcheck/_all.js
 _devcheck/_logic.js
 _devcheck/_*.txt
 _devcheck/*_out.txt
+_devcheck/shots/
+_devcheck/diag/
+_devcheck/_*.html
 
 # --- 系统与编辑器 ---
 Thumbs.db

@@ -3,188 +3,299 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-<title>断头谷公路 · 伏击指挥</title>
+<title>断头谷公路 · 第一人称伏击战</title>
 <style>
-  *{box-sizing:border-box;-webkit-user-select:none;user-select:none}
-  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#10130d;
-    font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",system-ui,sans-serif;
-    color:#e9e7dc;font-size:12px}
-  #app{position:fixed;inset:0}
-  #game{position:absolute;inset:0;display:block;cursor:crosshair}
-  .panel{position:absolute;background:rgba(12,16,18,.84);border:1px solid rgba(150,180,120,.30);
-    border-radius:6px;box-shadow:0 4px 18px rgba(0,0,0,.45)}
-  .hd{font-size:11px;letter-spacing:.12em;color:#b9d36a;padding:6px 8px 4px;
-    border-bottom:1px solid rgba(150,180,120,.20);display:flex;justify-content:space-between;align-items:center}
-  .bd{padding:6px 8px}
+:root{
+  --bg:#07090a;
+  --panel:rgba(9,12,14,.55);
+  --panel2:rgba(9,12,14,.78);
+  --line:rgba(150,190,215,.20);
+  --line2:rgba(150,190,215,.34);
+  --text:#e6edf2;
+  --dim:#8fa3b0;
+  --dim2:#63757f;
+  --cyan:#6fd3ff;
+  --amber:#ffc24d;
+  --red:#ff4d4d;
+  --green:#5fe08a;
+}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);
+  font-family:"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",system-ui,sans-serif;
+  color:var(--text);font-size:12px;letter-spacing:.02em;
+  -webkit-font-smoothing:antialiased}
+#app{position:fixed;inset:0;overflow:hidden;background:var(--bg)}
+#gl{position:absolute;inset:0;display:block;z-index:0}
+#hud{position:absolute;inset:0;display:block;z-index:1;pointer-events:none}
+#hurt{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse 78% 68% at 50% 50%,rgba(190,10,10,0) 42%,rgba(170,12,12,.42) 76%,rgba(96,0,0,.88) 100%);
+  transition:opacity .10s linear}
+#hurt.perm{opacity:1;transition:opacity .5s linear}
+#flashW{position:absolute;inset:0;z-index:2;pointer-events:none;background:#fff;opacity:0}
 
-  /* 顶栏 */
-  #topbar{left:8px;right:8px;top:8px;height:46px;display:flex;align-items:center;gap:14px;padding:0 12px}
-  #topbar .tt{font-size:14px;font-weight:700;letter-spacing:.06em;color:#f2efe2}
-  #topbar .tt small{display:block;font-size:10px;font-weight:400;color:#9fae86;letter-spacing:.18em}
-  .kv{display:flex;flex-direction:column;line-height:1.25}
-  .kv b{font-size:14px;font-variant-numeric:tabular-nums;color:#e9e7dc}
-  .kv span{font-size:10px;color:#8d9a78;letter-spacing:.1em}
-  #topbar .sp{flex:1}
-  .pill{border:1px solid rgba(150,180,120,.35);border-radius:20px;padding:3px 10px;font-size:11px;
-    color:#cfd8b8;background:rgba(150,180,120,.08);white-space:nowrap}
-  .pill.warn{border-color:#ff8a3d;color:#ffb37a;background:rgba(255,138,61,.12)}
-  .pill.dead{border-color:#ff4d4d;color:#ff9a9a;background:rgba(255,77,77,.12)}
+/* ---------- 通用面板：细线 + 半透明黑 ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border-radius:2px}
+.hd{font-size:10px;letter-spacing:.20em;color:var(--dim);padding:5px 8px 4px;
+  border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;
+  text-transform:uppercase;font-weight:600}
+.hd span:last-child{color:var(--dim2);letter-spacing:.06em}
+.bd{padding:6px 8px}
 
-  /* 小队面板 */
-  #squad{left:8px;top:62px;width:236px;max-height:calc(100vh - 250px);display:flex;flex-direction:column}
-  #squadList{overflow:auto;padding:4px}
-  .sq{display:grid;grid-template-columns:14px 1fr 62px;gap:6px;align-items:center;
-    padding:3px 5px;border-radius:4px;cursor:pointer;border:1px solid transparent}
-  .sq:hover{background:rgba(150,180,120,.10)}
-  .sq.sel{background:rgba(150,180,120,.16);border-color:rgba(150,180,120,.45)}
-  .sq.down{opacity:.55}
-  .sq.dead{opacity:.30;text-decoration:line-through}
-  .sq .nm{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sq .nm i{font-style:normal;font-size:9px;color:#8d9a78;margin-left:4px}
-  .sq .st{font-size:10px;text-align:right;white-space:nowrap}
-  .bar{height:3px;border-radius:2px;background:rgba(255,255,255,.13);overflow:hidden;margin-top:2px}
-  .bar>i{display:block;height:100%;background:#7fd1ff;transition:width .15s}
-  .bar.hp>i{background:#63d471}
-  .bar.am>i{background:#d8bb57}
-  .st-待命{color:#a8b394}.st-隐蔽{color:#7fd1ff}.st-警戒{color:#e6c44c}
-  .st-移动{color:#8fd4a8}.st-战斗{color:#ff9a6b}.st-被压制{color:#ff6b6b}
-  .st-找掩体{color:#ff6b6b}.st-集火{color:#ff9a6b}.st-反坦克{color:#ffd166}
-  .st-救援{color:#7fe0d0}.st-治疗{color:#7fe0d0}.st-撤退{color:#c9a0ff}
-  .st-撤离{color:#9ad0ff}.st-失能{color:#ff5a5a;font-weight:700}.st-阵亡{color:#666}
-  .st-恐慌{color:#ff3b3b;font-weight:700}.st-部署{color:#8d9a78}
+/* ---------- 顶栏 ---------- */
+#topbar{position:absolute;left:10px;right:10px;top:10px;height:42px;display:flex;align-items:center;
+  gap:16px;padding:0 12px;z-index:5}
+#topbar .tt{font-size:13px;font-weight:600;letter-spacing:.08em;color:#f2f7fa;line-height:1.15}
+#topbar .tt small{display:block;font-size:9px;font-weight:400;color:var(--dim2);letter-spacing:.22em}
+#topbar .sp{flex:1}
+.kv{display:flex;flex-direction:column;line-height:1.2;min-width:44px}
+.kv b{font-size:14px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums}
+.kv span{font-size:9px;color:var(--dim2);letter-spacing:.14em;text-transform:uppercase}
+.pill{font-size:10px;padding:3px 9px;border:1px solid var(--line);border-radius:2px;
+  color:var(--dim);letter-spacing:.08em;white-space:nowrap;background:rgba(0,0,0,.25)}
+.pill.warn{color:var(--amber);border-color:rgba(255,194,77,.45)}
+.pill.hot{color:var(--red);border-color:rgba(255,77,77,.5)}
 
-  /* 右侧 */
-  #right{right:8px;top:62px;width:262px;display:flex;flex-direction:column;gap:8px}
-  #objs .ob{display:flex;gap:6px;padding:3px 0;font-size:11px;line-height:1.35}
-  #objs .ob i{font-style:normal;width:12px;flex:0 0 12px;color:#8d9a78}
-  #objs .ob.done{color:#63d471}
-  #objs .ob.done i{color:#63d471}
-  #objs .ob.fail{color:#ff6b6b;text-decoration:line-through}
-  #objs .ob.sec{font-size:10px;color:#9aa88a}
-  #minimap{width:100%;height:150px;display:block;border-radius:4px}
-  #legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;color:#9aa88a;padding:5px 8px}
-  #legend b{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+/* ---------- 任务目标（左上） ---------- */
+#objs{position:absolute;left:10px;top:62px;width:266px;z-index:5}
+#objs .bd{padding:5px 8px 7px}
+.ob{display:flex;gap:7px;align-items:flex-start;padding:2.5px 0;font-size:11.5px;line-height:1.35;color:#d3dee5}
+.ob i{font-style:normal;color:var(--amber);font-size:9px;line-height:1.5;flex:0 0 10px;text-align:center}
+.ob.sec{color:var(--dim);font-size:10.5px}
+.ob.sec i{color:var(--dim2)}
+.ob.done{color:var(--dim2);text-decoration:line-through;text-decoration-color:rgba(143,163,176,.5)}
+.ob.done i{color:var(--green)}
 
-  /* 底部 */
-  #bottom{left:8px;right:8px;bottom:8px;display:flex;gap:8px;align-items:flex-end;pointer-events:none}
-  #bottom>*{pointer-events:auto}
-  #subs{flex:1;min-height:74px;max-height:74px;overflow:hidden;padding:6px 10px;font-size:12.5px;line-height:1.55}
-  #subs .ln{opacity:0;animation:fadein .25s forwards}
-  #subs .ln .who{color:#b9d36a;font-weight:700}
-  #subs .ln .cmd{color:#7fd1ff}
-  #subs .ln .no{color:#ff8a3d}
-  #subs .ln .sys{color:#e6c44c}
-  #subs .ln.sys .who{color:#e6c44c}
-  @keyframes fadein{to{opacity:1}}
+/* ---------- 雷达（右上） ---------- */
+#right{position:absolute;right:10px;top:62px;width:236px;z-index:5}
+#radar{position:relative;border:1px solid var(--line);background:var(--panel);
+  backdrop-filter:blur(3px);border-radius:2px}
+#radar .hd{position:absolute;left:0;right:0;top:0;z-index:2;
+  border-bottom:none;background:linear-gradient(180deg,rgba(0,0,0,.35),transparent)}
+#minimap{display:block;width:234px;height:190px;border-radius:2px}
+#legend{font-size:9.5px;color:var(--dim2);padding:4px 8px 6px;line-height:1.5;letter-spacing:.04em;
+  border-top:1px solid var(--line);background:var(--panel)}
+#legend b{color:var(--cyan);font-weight:600}
 
-  #cand{width:300px;display:none}
-  #cand .c{padding:4px 6px;border-radius:4px;cursor:pointer;border:1px solid transparent}
-  #cand .c:hover{background:rgba(150,180,120,.14);border-color:rgba(150,180,120,.4)}
-  #cand .c b{color:#ffd166;margin-right:6px}
+/* ---------- 小队（左下） ---------- */
+#squad{position:absolute;left:10px;bottom:10px;width:296px;z-index:5;
+  background:var(--panel);border:1px solid var(--line);border-radius:2px;
+  backdrop-filter:blur(3px)}
+#squad .bd{padding:4px 6px 5px;border-top:1px solid var(--line);color:var(--dim2);font-size:9.5px;line-height:1.5}
+#squadList{max-height:236px;overflow-y:auto;padding:3px}
+#squadList::-webkit-scrollbar{width:3px}
+#squadList::-webkit-scrollbar-thumb{background:rgba(150,190,215,.3)}
+.sq{display:grid;grid-template-columns:15px 1fr 52px;gap:6px;align-items:center;
+  padding:3px 5px;border-left:2px solid transparent;cursor:pointer;border-radius:1px}
+.sq:hover{background:rgba(111,211,255,.09)}
+.sq.sel{background:rgba(111,211,255,.14);border-left-color:var(--cyan)}
+.sq.dead{opacity:.32;filter:grayscale(1)}
+.sq.down{opacity:.62;border-left-color:var(--red)}
+.sq .nm{font-size:11.5px;font-weight:500;color:#e8f0f5;display:flex;gap:5px;align-items:baseline}
+.sq .nm i{font-style:normal;font-size:9px;color:var(--dim2)}
+.sq .bar{height:2px;background:rgba(255,255,255,.12);margin-top:2.5px;border-radius:1px;overflow:hidden}
+.sq .bar i{display:block;height:100%;transition:width .2s}
+.sq .bar.hp i{background:linear-gradient(90deg,#48c97a,#8fe8a8)}
+.sq .bar.am i{background:rgba(111,211,255,.72)}
+.sq .st{font-size:9px;color:var(--dim);text-align:right;letter-spacing:.04em;white-space:nowrap;overflow:hidden}
+.sq .st-交火,.sq .st-压制{color:var(--amber)}
+.sq .st-阵亡{color:var(--red)}
+.sq .st-找掩体,.sq .st-隐蔽{color:var(--cyan)}
 
-  #voicebox{width:390px}
-  #voicebox .row{display:flex;gap:6px;align-items:center;padding:5px 8px}
-  #voicebox input{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(150,180,120,.3);
-    border-radius:4px;color:#e9e7dc;padding:5px 8px;font-size:12px;font-family:inherit;outline:none}
-  #voicebox input:focus{border-color:#b9d36a}
-  .btn{border:1px solid rgba(150,180,120,.35);background:rgba(150,180,120,.10);color:#d7dfc4;
-    border-radius:4px;padding:5px 9px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap}
-  .btn:hover{background:rgba(150,180,120,.22);color:#fff}
-  .btn.on{background:#b9d36a;color:#1b2013;border-color:#b9d36a;font-weight:700}
-  .btn.dim{opacity:.5}
-  .btn.red{border-color:rgba(255,90,90,.5);background:rgba(255,90,90,.12);color:#ffb0b0}
-  .btn.red:hover{background:rgba(255,90,90,.25)}
+/* ---------- 底部：无线电字幕 ---------- */
+#subs{position:absolute;left:50%;transform:translateX(-50%);bottom:118px;width:660px;
+  z-index:4;text-align:center;pointer-events:none}
+#subs .ln{font-size:13.5px;line-height:1.55;margin:1.5px 0;color:#eef4f8;
+  text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.8)}
+#subs .ln .who{color:var(--cyan);font-weight:600}
+#subs .ln.sys .who{color:var(--amber)}
+#subs .ln .sys{color:#d8e6ee}
+#subs .ln .ok{color:var(--green)}
+#subs .ln .no{color:var(--red)}
+#subs .ln .cmd{color:var(--cyan)}
 
-  /* 指令面板 */
-  #cmdpanel{left:8px;bottom:8px;width:640px;display:none}
-  #cmdpanel .tabs{display:flex;gap:2px;padding:4px 6px 0}
-  #cmdpanel .tabs .btn{border-radius:4px 4px 0 0;padding:4px 8px}
-  #cmdpanel .cols{display:grid;grid-template-columns:132px 1fr 148px;gap:8px;padding:6px 8px;
-    max-height:230px;overflow:auto}
-  #cmdpanel h5{margin:0 0 4px;font-size:10px;color:#8d9a78;letter-spacing:.12em;font-weight:600}
-  #cmdpanel .chip{display:inline-block;margin:0 4px 4px 0;padding:3px 7px;border-radius:4px;font-size:11px;
-    border:1px solid rgba(150,180,120,.3);cursor:pointer;background:rgba(150,180,120,.07)}
-  #cmdpanel .chip:hover{background:rgba(150,180,120,.25);color:#fff}
-  #cmdpanel .chip.on{background:#b9d36a;color:#1b2013;font-weight:700;border-color:#b9d36a}
-  #cmdpanel .prev{padding:4px 8px 8px;font-size:11px;color:#cfd8b8;border-top:1px solid rgba(150,180,120,.2)}
-  #cmdpanel .prev b{color:#7fd1ff}
+/* ---------- 击杀播报（右上，雷达下方） ---------- */
+#killfeed{position:absolute;right:10px;top:352px;width:236px;z-index:5;text-align:right;
+  pointer-events:none;font-size:11px;line-height:1.6}
+#killfeed .kf{color:#dfe9ef;text-shadow:0 1px 3px rgba(0,0,0,.9);
+  animation:kfIn .16s ease-out}
+#killfeed .kf b{color:var(--cyan);font-weight:600}
+#killfeed .kf .v{color:var(--red)}
+#killfeed .kf.dim{color:var(--dim)}
+@keyframes kfIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
 
-  /* 预警条 */
-  #alert{position:absolute;left:50%;top:76px;transform:translateX(-50%);display:none;
-    background:rgba(255,60,40,.20);border:1px solid rgba(255,90,60,.75);color:#ffd0c0;
-    padding:6px 16px;border-radius:4px;font-size:14px;font-weight:700;letter-spacing:.08em;
-    animation:pulse .7s infinite alternate;z-index:20;pointer-events:none}
-  @keyframes pulse{from{opacity:.65}to{opacity:1}}
+/* ---------- 武器 / 弹药（右下） ---------- */
+#weaponBox{position:absolute;right:14px;bottom:14px;z-index:5;text-align:right;pointer-events:none}
+#weaponName{font-size:11px;letter-spacing:.24em;color:var(--dim);text-transform:uppercase;
+  text-shadow:0 1px 3px rgba(0,0,0,.9)}
+#ammo{display:flex;align-items:baseline;justify-content:flex-end;gap:4px;
+  text-shadow:0 2px 6px rgba(0,0,0,.95)}
+#magAmmo{font-size:38px;font-weight:600;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+#magAmmo.low{color:var(--red)}
+#reserveAmmo{font-size:15px;color:var(--dim);font-variant-numeric:tabular-nums}
+#reloadHint{font-size:11px;color:var(--amber);letter-spacing:.14em;height:14px}
 
-  /* 遮罩 */
-  .overlay{position:absolute;inset:0;background:rgba(8,10,7,.90);display:flex;align-items:center;
-    justify-content:center;z-index:50}
-  .overlay .card{width:760px;max-width:92vw;max-height:92vh;overflow:auto;padding:22px 26px;
-    background:rgba(16,20,16,.97);border:1px solid rgba(150,180,120,.3);border-radius:8px}
-  .overlay h1{margin:0 0 4px;font-size:24px;letter-spacing:.10em;color:#e9e7dc}
-  .overlay h1 small{display:block;font-size:11px;letter-spacing:.3em;color:#8d9a78;margin-top:6px;font-weight:400}
-  .overlay h2{font-size:13px;color:#b9d36a;letter-spacing:.14em;margin:18px 0 6px;
-    border-bottom:1px solid rgba(150,180,120,.2);padding-bottom:4px}
-  .overlay p,.overlay li{font-size:12.5px;line-height:1.7;color:#cfcdc0;margin:4px 0}
-  .overlay ul{margin:4px 0;padding-left:18px}
-  .overlay .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
-  .overlay kbd{background:rgba(150,180,120,.16);border:1px solid rgba(150,180,120,.35);border-radius:3px;
-    padding:1px 5px;font-size:11px;font-family:inherit;color:#e6f0cf}
-  .overlay .go{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
-  .overlay .go .btn{padding:9px 18px;font-size:13px}
-  .grade{font-size:64px;font-weight:800;line-height:1;letter-spacing:.05em}
-  .stat{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed rgba(150,180,120,.15);font-size:12.5px}
-  .stat b{color:#e9e7dc;font-variant-numeric:tabular-nums}
-  .tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;margin-right:6px}
-  .ok{background:rgba(99,212,113,.16);color:#8ee29a;border:1px solid rgba(99,212,113,.4)}
-  .bad{background:rgba(255,90,90,.14);color:#ffa0a0;border:1px solid rgba(255,90,90,.4)}
-  #toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
-    font-size:22px;font-weight:700;color:#ffd166;text-shadow:0 2px 12px #000;opacity:0;
-    transition:opacity .3s;z-index:30}
-  #mic{width:9px;height:9px;border-radius:50%;background:#5b6b4a;display:inline-block;margin-right:6px}
-  #mic.on{background:#ff4d4d;box-shadow:0 0 8px #ff4d4d;animation:pulse .6s infinite alternate}
+/* ---------- 中下：语音 / 指令 ---------- */
+#bottom{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;width:660px;z-index:6}
+#cand{display:none;margin-bottom:6px}
+#candList .c{padding:4px 7px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--line);
+  display:flex;gap:8px;align-items:center}
+#candList .c:last-child{border-bottom:none}
+#candList .c:hover{background:rgba(111,211,255,.13)}
+#candList .c b{color:var(--amber);font-size:10px;border:1px solid rgba(255,194,77,.45);
+  padding:0 4px;border-radius:2px}
+#voicebox{display:flex;flex-direction:column;gap:5px;padding:7px 9px}
+#voicebox .row{display:flex;gap:6px;align-items:center}
+#mic{width:9px;height:9px;border-radius:50%;background:#3a4a52;flex:0 0 9px;
+  box-shadow:0 0 0 0 rgba(111,211,255,.5)}
+#mic.on{background:var(--cyan);animation:micPulse 1.1s infinite}
+@keyframes micPulse{0%{box-shadow:0 0 0 0 rgba(111,211,255,.55)}70%{box-shadow:0 0 0 9px rgba(111,211,255,0)}100%{box-shadow:0 0 0 0 rgba(111,211,255,0)}}
+#txtCmd{flex:1;background:rgba(0,0,0,.45);border:1px solid var(--line);color:var(--text);
+  padding:5px 8px;border-radius:2px;font-family:inherit;font-size:12px;outline:none}
+#txtCmd:focus{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(111,211,255,.25)}
+#txtCmd::placeholder{color:var(--dim2)}
+kbd{font-family:inherit;font-size:10px;background:rgba(255,255,255,.10);border:1px solid var(--line2);
+  padding:0 4px;border-radius:2px;color:#dbe6ec}
+
+/* ---------- 按钮 ---------- */
+.btn{font-family:inherit;font-size:11px;letter-spacing:.06em;padding:5px 11px;cursor:pointer;
+  background:rgba(255,255,255,.05);color:#dbe6ec;border:1px solid var(--line2);border-radius:2px;
+  transition:background .12s,border-color .12s}
+.btn:hover{background:rgba(111,211,255,.16);border-color:var(--cyan)}
+.btn.dim{opacity:.55}
+.btn.on{background:rgba(111,211,255,.2);border-color:var(--cyan);color:#fff}
+
+/* ---------- 指令面板 ---------- */
+#cmdpanel{position:absolute;left:50%;transform:translateX(-50%);bottom:112px;width:900px;
+  display:none;z-index:9;background:var(--panel2)}
+#cmdpanel .tabs{display:flex;gap:5px;padding:6px 8px;border-bottom:1px solid var(--line);align-items:center}
+#cmdpanel .cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:8px;max-height:340px;overflow-y:auto}
+#cmdpanel .cols::-webkit-scrollbar{width:4px}
+#cmdpanel .cols::-webkit-scrollbar-thumb{background:rgba(150,190,215,.3)}
+#cmdpanel .prev{padding:5px 9px;border-top:1px solid var(--line);font-size:11px;color:var(--dim)}
+#cmdpanel .prev b{color:var(--cyan)}
+#cmdpanel .col h4{margin:0 0 5px;font-size:10px;letter-spacing:.16em;color:var(--dim2);
+  text-transform:uppercase;font-weight:600}
+#cmdpanel .col .g{margin-bottom:9px}
+#cmdpanel .col .btns{display:flex;flex-wrap:wrap;gap:4px}
+#cmdpanel .col .btns .btn{padding:3.5px 8px;font-size:11px}
+
+/* ---------- 警告 ---------- */
+#alert{position:absolute;left:50%;transform:translateX(-50%);top:74px;display:none;z-index:8;
+  font-size:14px;letter-spacing:.30em;color:#fff;background:rgba(150,10,10,.80);
+  padding:6px 22px;border:1px solid rgba(255,90,90,.55);text-transform:uppercase;
+  animation:alertPulse 1s infinite}
+@keyframes alertPulse{0%,100%{opacity:1}50%{opacity:.45}}
+#toast{position:absolute;left:50%;transform:translateX(-50%);top:132px;z-index:8;
+  font-size:12.5px;color:#eef4f8;background:rgba(0,0,0,.72);border:1px solid var(--line);
+  padding:5px 16px;border-radius:2px;opacity:0;transition:opacity .35s;pointer-events:none;
+  letter-spacing:.06em}
+
+/* ---------- 结算 / 开场 ---------- */
+.overlay{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,rgba(6,9,11,.90),rgba(3,5,6,.98))}
+.card{width:940px;max-height:92vh;overflow-y:auto;padding:30px 34px;
+  background:linear-gradient(160deg,rgba(16,21,24,.96),rgba(9,12,14,.98));
+  border:1px solid var(--line2);border-radius:3px;
+  box-shadow:0 20px 70px rgba(0,0,0,.75)}
+.card::-webkit-scrollbar{width:5px}
+.card::-webkit-scrollbar-thumb{background:rgba(150,190,215,.3)}
+.card h1{margin:0 0 14px;font-size:27px;letter-spacing:.06em;font-weight:600;color:#fff}
+.card h1 small{display:block;font-size:10px;font-weight:400;color:var(--dim2);
+  letter-spacing:.34em;margin-top:6px;text-transform:uppercase}
+.card h2{margin:20px 0 7px;font-size:10.5px;letter-spacing:.24em;color:var(--cyan);
+  text-transform:uppercase;font-weight:600}
+.card p{margin:7px 0;line-height:1.72;color:#c6d3db;font-size:12.5px}
+.card b{color:#fff;font-weight:600}
+.card .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 26px}
+.card ul{margin:5px 0;padding-left:17px;line-height:1.85;color:#c6d3db;font-size:12.5px}
+.card ul li::marker{color:var(--dim2)}
+.card .go{display:flex;gap:11px;margin-top:24px}
+.card .go .btn{padding:9px 20px;font-size:12.5px}
+.stat{display:flex;justify-content:space-between;gap:14px;padding:4.5px 0;
+  border-bottom:1px solid rgba(150,190,215,.10);font-size:12px}
+.stat b{color:#fff;font-weight:600}
+.tag{padding:1px 7px;border-radius:2px;font-size:11px}
+.tag.ok{background:rgba(95,224,138,.16);color:var(--green);border:1px solid rgba(95,224,138,.4)}
+.tag.bad{background:rgba(255,77,77,.16);color:var(--red);border:1px solid rgba(255,77,77,.4)}
+.grade{font-size:17px;font-weight:700;letter-spacing:.06em}
+
+/* ---------- 部署条 ---------- */
+#deployBar{position:absolute;left:50%;transform:translateX(-50%);top:62px;display:none;z-index:7;
+  padding:7px 11px;gap:7px;align-items:center;background:var(--panel2)}
+#deployBar .row{display:flex;gap:7px;align-items:center}
+#deployBar .hint{font-size:11px;color:var(--dim);max-width:520px;line-height:1.5}
+
+/* ---------- 指针锁定提示 ---------- */
+#lockHint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;
+  font-size:13px;letter-spacing:.18em;color:#dfe9ef;background:rgba(0,0,0,.72);
+  border:1px solid var(--line2);padding:13px 26px;border-radius:2px;text-align:center;
+  cursor:pointer;display:none}
+#lockHint small{display:block;font-size:10px;color:var(--dim);letter-spacing:.1em;margin-top:6px}
 </style>
 </head>
 <body>
 <div id="app">
   <canvas id="game"></canvas>
+  <canvas id="hud"></canvas>
+  <div id="hurt"></div>
+  <div id="flashW"></div>
 
+  <!-- 顶部状态条 -->
   <div class="panel" id="topbar">
-    <div class="tt">断头谷公路<small>BROKEN-HEAD VALLEY ROAD</small></div>
-    <div class="kv"><b id="mTime">00:00</b><span>任务时间</span></div>
-    <div class="kv"><b id="mPhase">情报</b><span>阶段</span></div>
-    <div class="kv"><b id="mAlive">11</b><span>可用兵力</span></div>
-    <div class="kv"><b id="mKill">0</b><span>敌伤亡</span></div>
+    <div class="tt">断头谷公路<small>OPERATION BROKEN-HEAD VALLEY</small></div>
     <div class="sp"></div>
+    <div class="kv"><b id="mTime">00:00</b><span>时间</span></div>
+    <div class="kv"><b id="mPhase">情报</b><span>阶段</span></div>
+    <div class="kv"><b id="mAlive">11</b><span>兵力</span></div>
+    <div class="kv"><b id="mKill">0</b><span>歼敌</span></div>
     <div class="pill" id="mWeather">晴天 · 能见度好</div>
     <div class="pill" id="mSpeed" style="cursor:pointer">速度 1x</div>
     <div class="pill" id="mSpeedUp" style="cursor:pointer">时间加速(2x/4x)</div>
     <div class="pill" id="mNoise">识别环境 良好</div>
   </div>
 
-  <div class="panel" id="squad">
+  <!-- 任务目标 -->
+  <div class="panel" id="objs">
+    <div class="hd"><span>任务目标 · OBJECTIVES</span><span id="ojTime">剩余 --:--</span></div>
+    <div class="bd" id="objList"></div>
+  </div>
+
+  <!-- 雷达 -->
+  <div id="right">
+    <div id="radar">
+      <div class="hd"><span>战地雷达 · RADAR</span><span id="mpHint">Z 标记</span></div>
+      <canvas id="minimap"></canvas>
+    </div>
+    <div id="legend">
+      敌方 <b>▲</b> 红 · 我方 <b>●</b> 绿 · 视野锥 <b>◤</b> 青 · 鼠标右键瞄准
+    </div>
+  </div>
+
+  <!-- 击杀播报 -->
+  <div id="killfeed"></div>
+
+  <!-- 小队状态 -->
+  <div id="squad">
     <div class="hd"><span>小队状态 · SQUAD</span><span id="sqCount">10/10</span></div>
     <div id="squadList"></div>
-    <div class="bd" style="border-top:1px solid rgba(150,180,120,.2);padding:5px 8px;color:#9aa88a;font-size:10px">
-      点击队员可单独下令；<kbd style="font-family:inherit">1</kbd>组/火力组/反坦克组/支援组 可用指令直接呼叫
+    <div class="bd">
+      点击队员单独下令 · <kbd>1</kbd>-<kbd>5</kbd> 编组直呼 · <kbd>Q</kbd> 指令面板
     </div>
   </div>
 
-  <div id="right">
-    <div class="panel" id="objs">
-      <div class="hd"><span>任务目标 · OBJECTIVES</span><span id="ojTime">剩余 --:--</span></div>
-      <div class="bd" id="objList"></div>
-    </div>
-    <div class="panel" id="mapPanel">
-      <div class="hd"><span>战场态势 · TACTICAL MAP</span><span id="mpHint">右键标记</span></div>
-      <canvas id="minimap"></canvas>
-      <div id="legend"></div>
-    </div>
-  </div>
-
+  <!-- 警告与提示 -->
   <div id="alert">炮击预警</div>
   <div id="toast"></div>
 
+  <!-- 武器 / 弹药 -->
+  <div id="weaponBox">
+    <div id="weaponName">突击步枪</div>
+    <div id="ammo"><b id="magAmmo">30</b><span id="reserveAmmo">/240</span></div>
+    <div id="reloadHint"></div>
+  </div>
+
+  <!-- 底部：无线电字幕 + 语音输入 -->
   <div id="bottom">
     <div class="panel" id="subs"></div>
     <div>
@@ -197,8 +308,10 @@
           <span id="mic"></span>
           <button class="btn" id="btnVoice">按住 [V] 说话</button>
           <button class="btn" id="btnCmd">指令面板 [Q]</button>
+          <span style="flex:1"></span>
+          <span style="font-size:10px;color:#63757f;letter-spacing:.06em">左键射击 · 右键瞄准 · Z 标记 · R 换弹 · G 手雷</span>
         </div>
-        <div class="row" style="padding-top:0">
+        <div class="row">
           <input id="txtCmd" placeholder="备用输入：如「石头，打坦克」→ 回车" autocomplete="off" />
           <button class="btn" id="btnSend">下达</button>
         </div>
@@ -206,44 +319,49 @@
     </div>
   </div>
 
+  <!-- 指令面板 -->
   <div class="panel" id="cmdpanel">
     <div class="tabs">
       <button class="btn on" data-tab="0">指令</button>
       <button class="btn" data-tab="1">编组</button>
       <button class="btn" data-tab="2">战术</button>
-      <span class="sp" style="flex:1"></span>
+      <span style="flex:1"></span>
       <button class="btn dim" id="cmdClose">关闭</button>
     </div>
     <div class="cols" id="cmdCols"></div>
-    <div class="prev">当前指令：<b id="cmdPrev">未选择</b> &nbsp;—&nbsp; 呼号省略时默认「准星标记点 / 最近队友」</div>
+    <div class="prev">当前指令：<b id="cmdPrev">未选择</b> &nbsp;—&nbsp; 呼号省略时默认「准星指向的敌人 / 最近队友」</div>
   </div>
 
+  <!-- 指针锁定提示 -->
+  <div id="lockHint">点击进入战场<small>点击后锁定鼠标视角 · ESC 释放</small></div>
+
+  <!-- 开场 -->
   <div class="overlay" id="startScreen">
     <div class="card">
-      <h1>断头谷公路<small>VOICE-COMMAND AMBUSH · 第一关</small></h1>
-      <p>下午，晴天，能见度好。敌方一支补给车队将通过山谷公路（东 → 西）。你率 10 人伏击，
+      <h1>断头谷公路<small>BROKEN-HEAD VALLEY · 第一人称伏击战</small></h1>
+      <p>下午，晴天，能见度好。敌方一支补给车队将通过山谷公路（东 → 西）。你率 10 人设伏，
         目标是 <b>摧毁坦克</b>、<b>截获密码箱</b>，并带 <b>至少 6 人撤离</b>。</p>
+      <p style="color:#8fa3b0;font-size:11.5px">你不再是俯瞰战场的指挥官 —— 你和队友一样站在公路两侧的土坡上，
+        只能用眼睛和无线电指挥这场战斗。</p>
       <h2>操作</h2>
       <div class="grid">
         <ul>
-          <li><kbd>WASD</kbd> 移动（你自己也是 10 人之一，能开枪、扔雷、放炸药）</li>
-          <li><kbd>鼠标左键</kbd> 射击 · <kbd>R</kbd> 换弹</li>
-          <li><kbd>鼠标右键</kbd> 放置准星标记点（指令的目标/地点）</li>
-          <li><kbd>E</kbd> 交互（拾取密码箱 / 安放炸药）</li>
-          <li><kbd>V</kbd> 按住说话（语音指挥）</li>
+          <li><kbd>点击画面</kbd> 锁定鼠标 · <kbd>ESC</kbd> 释放</li>
+          <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · <kbd>Shift</kbd> 疾跑 · <kbd>Ctrl</kbd> 蹲下</li>
+          <li><kbd>鼠标左键</kbd> 射击 · <kbd>右键</kbd> 瞄准（ADS）</li>
+          <li><kbd>R</kbd> 换弹 · <kbd>G</kbd> 手雷 · <kbd>F</kbd> 起爆地雷</li>
         </ul>
         <ul>
-          <li><kbd>Q</kbd> 指令面板（语音失败也能玩，语音不是唯一操作方式）</li>
-          <li><kbd>T</kbd> 文本指令输入 · <kbd>1/2/3</kbd> 确认候选</li>
-          <li><kbd>Space</kbd> 暂停 · <kbd>+</kbd>/<kbd>-</kbd> 时间加速</li>
-          <li><kbd>1</kbd>~<kbd>5</kbd> 选中队员（左侧列表点击亦可）</li>
-          <li>部署阶段：拖动队员到合理位置，或直接用推荐部署</li>
+          <li><kbd>V</kbd> 按住说话（语音指挥队友）</li>
+          <li><kbd>Q</kbd> 指令面板 · <kbd>T</kbd> 文本下令 · <kbd>1/2/3</kbd> 确认候选</li>
+          <li><kbd>Z</kbd> 标记准星指向的位置（作为指令目标）</li>
+          <li><kbd>Space</kbd> 暂停 · <kbd>+</kbd>/<kbd>-</kbd> 时间加速 · <kbd>Tab</kbd> 战况总览</li>
         </ul>
       </div>
       <h2>语音语法</h2>
       <p><b>呼号 + 动作 + 目标/地点 + 修饰</b>　例：“老周，前进” · “石头，打坦克” · “阿杰，隐蔽” ·
         “全体，撤退到 C 点” · “1 组，跟我来” · “小满，救阿杰” · “反坦克组，打坦克”</p>
-      <p>呼号可省略（默认当前准星目标 / 最近队友）；目标支持准星标记点、语音方向（“11 点方向机枪手”）、
+      <p>呼号可省略（默认准星指向的敌人 / 最近队友）；目标支持你的准星标记点、语音方向（“11 点方向机枪手”）、
         默认规则（“打坦克”默认最近威胁坦克）。识别置信度低于 70% 时不执行，弹候选让你按 1/2/3 确认。
         炮击、爆炸、机枪声会降低识别率，此时“重复”很有用。</p>
       <div class="go">
@@ -255,6 +373,7 @@
     </div>
   </div>
 
+  <!-- 结算 -->
   <div class="overlay" id="endScreen" style="display:none">
     <div class="card" id="endCard"></div>
   </div>
@@ -804,6 +923,7 @@ const World = {
   },
   cam: { x: 0, y: 0 },
   timeScale: 1,
+  viewPitch: 0,     // 第一人称准星俯仰角，由渲染层每帧写入（逻辑层只读，用于折算射程）
 };
 
 function allies() { return World.units.filter(u => u.team === 'ally' && !u.dead); }
@@ -1642,7 +1762,10 @@ function spawnBullet(u, tgt, spreadMul, opts) {
   World.projectiles.push({
     type: 'bullet', x: u.x + Math.cos(a) * 8, y: u.y + Math.sin(a) * 8,
     vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed, dmg: w.dmg, pen: w.pen,
-    team: u.team, owner: u, life: w.range / w.speed, t: 0, sup: w.sup,
+    team: u.team, owner: u,
+    /* rangeMul：第一人称下用准星俯仰角折算的有效射程系数（AI 不开火时恒为 1） */
+    life: (w.range * (opts && opts.rangeMul !== undefined ? opts.rangeMul : 1)) / w.speed,
+    t: 0, sup: w.sup,
     color: u.team === 'ally' ? 'rgba(190,235,255,.95)' : 'rgba(255,190,150,.95)',
   });
   u.magAmmo--; u.shots++;
@@ -2227,26 +2350,32 @@ function updatePlayer(u, dt) {
     return;
   }
   if (World.handover && World.handover.rescueTarget === u) { }
-  /* 移动 */
-  let mx = 0, my = 0;
-  if (Input.key['w'] || Input.key['arrowup']) my -= 1;
-  if (Input.key['s'] || Input.key['arrowdown']) my += 1;
-  if (Input.key['a'] || Input.key['arrowleft']) mx -= 1;
-  if (Input.key['d'] || Input.key['arrowright']) mx += 1;
-  if (mx || my) {
-    const L = Math.hypot(mx, my);
+  /* 移动：第一人称下 WASD 相对视角 —— W 沿视线前进、A/D 横向平移、S 后退。
+     逻辑层不依赖渲染层：只有 Input 与 World.viewPitch 两个输入源，
+     所以在无 DOM 的离线仿真里（Cam 不存在）也能照常跑。 */
+  let fwd = 0, str = 0;
+  if (Input.key['w'] || Input.key['arrowup']) fwd += 1;
+  if (Input.key['s'] || Input.key['arrowdown']) fwd -= 1;
+  if (Input.key['a'] || Input.key['arrowleft']) str -= 1;
+  if (Input.key['d'] || Input.key['arrowright']) str += 1;
+  if (fwd || str) {
+    const cy = Math.cos(u.facing), sy = Math.sin(u.facing);
+    let mx = cy * fwd - sy * str, my = sy * fwd + cy * str;
+    const L = Math.hypot(mx, my) || 1; mx /= L; my /= L;
     let sp = 88 * (Input.key['shift'] ? 1.35 : 1);
+    if (Input.key['control'] || Input.key['c']) sp *= 0.52;      // 蹲下
     if (u.reloadT > 0) sp *= 0.85;
     if (inRiver(u.x, u.y) && !onBridge(u.x, u.y)) sp *= 0.55;
     if (u.suppression > 60) sp *= 0.85;
-    const nx = u.x + mx / L * sp * dt, ny = u.y + my / L * sp * dt;
+    const nx = u.x + mx * sp * dt, ny = u.y + my * sp * dt;
     if (passable(nx, u.y) && !propBlocked(nx, u.y, 6)) u.x = nx;
     if (passable(u.x, ny) && !propBlocked(u.x, ny, 6)) u.y = ny;
     u.moving = true;
   } else u.moving = false;
-  /* 朝向鼠标 */
+  /* 朝向：第一人称下由视角决定（渲染层每帧把 yaw 写进 u.facing）；
+     俯视/离线仿真时回退到鼠标世界坐标。 */
   const m = Input.mouseWorld;
-  if (m) u.facing = Math.atan2(m.y - u.y, m.x - u.x);
+  if (m && !Input.fpsAim) u.facing = Math.atan2(m.y - u.y, m.x - u.x);
   /* 射击 */
   if (Input.mouseDown && u.reloadT <= 0 && u.fireCd <= 0) {
     if (u.magAmmo <= 0) { tryReload(u); }
@@ -2254,7 +2383,11 @@ function updatePlayer(u, dt) {
       const w = u.wpn;
       u.fireCd = w.rof;
       const tgt = { x: u.x + Math.cos(u.facing) * 400, y: u.y + Math.sin(u.facing) * 400 };
-      spawnBullet(u, tgt, spreadMul(u) * 0.85);
+      /* 第一人称：准星抬离水平面越多，子弹越打不到地面目标（射击高处/天空基本落空）。
+         逻辑层的弹道始终躺在水平面上，所以这里用「有效射程」表达俯仰带来的偏差。 */
+      const pm = World.viewPitch || 0;
+      const rangeMul = clamp(1 - Math.abs(pm) / 0.24, 0.04, 1);
+      spawnBullet(u, tgt, spreadMul(u) * 0.85, { rangeMul: rangeMul });
       if (!World.triggered) triggerAmbush('player');
     }
   }
@@ -2625,523 +2758,1208 @@ function scoreMission() {
 }
 
 /* =========================================================================
-   九、渲染
+   九、第一人称 3D 渲染（原生 WebGL，无外部依赖）
+
+   逻辑层完全不知道渲染方式 —— 它只维护 World.units / vehicles / props 的 2D 坐标。
+   这里把 (x, y) 直接当成 3D 世界的地面平面 (x, 0, y)：
+     比例尺 1 米 ≈ 20 世界单位（公路宽 140 ≈ 7 米、人半径 5.2 ≈ 肩宽 0.52 米、
+     世界 2200×1300 ≈ 110×65 米），所以坐标不需要任何换算。
+   模型约定「前方 = +X」，因此 3D 绕 Y 轴旋转角 = -facing（2D 角度取反）。
    ========================================================================= */
+
+/* ------------------------------------------------------------- 9.1 矩阵数学 */
+function m4new() { return new Float32Array(16); }
+function m4ident(o) { o[0] = 1; o[1] = 0; o[2] = 0; o[3] = 0; o[4] = 0; o[5] = 1; o[6] = 0; o[7] = 0;
+  o[8] = 0; o[9] = 0; o[10] = 1; o[11] = 0; o[12] = 0; o[13] = 0; o[14] = 0; o[15] = 1; return o; }
+/* o = a * b（列主序） */
+function m4mul(o, a, b) {
+  for (let i = 0; i < 4; i++) {
+    const b0 = b[i * 4], b1 = b[i * 4 + 1], b2 = b[i * 4 + 2], b3 = b[i * 4 + 3];
+    o[i * 4] = a[0] * b0 + a[4] * b1 + a[8] * b2 + a[12] * b3;
+    o[i * 4 + 1] = a[1] * b0 + a[5] * b1 + a[9] * b2 + a[13] * b3;
+    o[i * 4 + 2] = a[2] * b0 + a[6] * b1 + a[10] * b2 + a[14] * b3;
+    o[i * 4 + 3] = a[3] * b0 + a[7] * b1 + a[11] * b2 + a[15] * b3;
+  }
+  return o;
+}
+function m4persp(o, fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+  o[0] = f / aspect; o[1] = 0; o[2] = 0; o[3] = 0;
+  o[4] = 0; o[5] = f; o[6] = 0; o[7] = 0;
+  o[8] = 0; o[9] = 0; o[10] = (far + near) * nf; o[11] = -1;
+  o[12] = 0; o[13] = 0; o[14] = 2 * far * near * nf; o[15] = 0;
+  return o;
+}
+function m4lookAt(o, ex, ey, ez, cx, cy, cz, ux, uy, uz) {
+  let zx = ex - cx, zy = ey - cy, zz = ez - cz;
+  let l = Math.hypot(zx, zy, zz) || 1; zx /= l; zy /= l; zz /= l;
+  let xx = uy * zz - uz * zy, xy = uz * zx - ux * zz, xz = ux * zy - uy * zx;
+  l = Math.hypot(xx, xy, xz) || 1; xx /= l; xy /= l; xz /= l;
+  const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+  o[0] = xx; o[1] = yx; o[2] = zx; o[3] = 0;
+  o[4] = xy; o[5] = yy; o[6] = zy; o[7] = 0;
+  o[8] = xz; o[9] = yz; o[10] = zz; o[11] = 0;
+  o[12] = -(xx * ex + xy * ey + xz * ez);
+  o[13] = -(yx * ex + yy * ey + yz * ez);
+  o[14] = -(zx * ex + zy * ey + zz * ez);
+  o[15] = 1;
+  return o;
+}
+/* 平移 + 绕 Y 旋转 + 缩放（模型前方 = +X） */
+function m4trs(o, tx, ty, tz, ry, sx, sy, sz) {
+  const c = Math.cos(ry || 0), s = Math.sin(ry || 0);
+  if (sx === undefined) sx = 1; if (sy === undefined) sy = sx; if (sz === undefined) sz = sx;
+  o[0] = c * sx; o[1] = 0; o[2] = -s * sx; o[3] = 0;
+  o[4] = 0; o[5] = sy; o[6] = 0; o[7] = 0;
+  o[8] = s * sz; o[9] = 0; o[10] = c * sz; o[11] = 0;
+  o[12] = tx; o[13] = ty; o[14] = tz; o[15] = 1;
+  return o;
+}
+/* 把模型矩阵作用于点（用于把 3D 点投影到屏幕） */
+function projectPoint(mvp, x, y, z, out) {
+  const cx = mvp[0] * x + mvp[4] * y + mvp[8] * z + mvp[12];
+  const cy = mvp[1] * x + mvp[5] * y + mvp[9] * z + mvp[13];
+  const cw = mvp[3] * x + mvp[7] * y + mvp[11] * z + mvp[15];
+  if (cw <= 0.001) { out.behind = true; return out; }
+  out.behind = false;
+  out.x = (cx / cw * 0.5 + 0.5) * view.w;
+  out.y = (0.5 - cy / cw * 0.5) * view.h;
+  out.w = cw;
+  return out;
+}
+
+/* --------------------------------------------------------- 9.2 WebGL 初始化 */
 const CV = document.getElementById('game');
-const CTX = CV.getContext('2d');
+const HUDC = document.getElementById('hud');
+const HCTX = HUDC.getContext('2d');
 const MM = document.getElementById('minimap');
 const MCTX = MM.getContext('2d');
-let terrain = null;
-const view = { w: 1280, h: 720, dpr: 1 };
+const view = { w: 1280, h: 720, dpr: 1, bw: 1280, bh: 720 };
+let GL = null;
+
+const VS_SRC = [
+  'attribute vec3 aPos; attribute vec3 aNrm; attribute vec2 aUV; attribute vec3 aCol;',
+  'uniform mat4 uProj; uniform mat4 uView; uniform mat4 uModel;',
+  'varying vec3 vN; varying vec3 vW; varying vec2 vUV; varying vec3 vCol;',
+  'void main(){',
+  '  vec4 w = uModel * vec4(aPos, 1.0);',
+  '  vW = w.xyz;',
+  '  vN = mat3(uModel[0].xyz, uModel[1].xyz, uModel[2].xyz) * aNrm;',
+  '  vUV = aUV; vCol = aCol;',
+  '  gl_Position = uProj * uView * w;',
+  '}'
+].join('\n');
+
+const FS_SRC = [
+  'precision mediump float;',
+  'uniform vec3 uTint; uniform float uUseTex; uniform sampler2D uTex;',
+  'uniform vec3 uFog; uniform float uFogNear; uniform float uFogFar; uniform vec3 uCam;',
+  'uniform float uAlpha; uniform float uEmis; uniform float uUnlit;',
+  'varying vec3 vN; varying vec3 vW; varying vec2 vUV; varying vec3 vCol;',
+  'void main(){',
+  '  vec3 base = vCol * uTint;',
+  '  if (uUseTex > 0.5) base *= texture2D(uTex, vUV).rgb;',
+  '  float d = distance(vW, uCam);',
+  '  float fog = clamp((d - uFogNear) / max(1.0, uFogFar - uFogNear), 0.0, 1.0);',
+  '  fog = fog * fog;',
+  '  vec3 col;',
+  '  if (uUnlit > 0.5) {',
+  '    col = base;',
+  '  } else {',
+  '    vec3 N = normalize(vN);',
+  '    vec3 L = normalize(vec3(-0.40, 0.82, 0.41));',
+  '    float ndl = max(dot(N, L), 0.0);',
+  '    float amb = 0.42 + 0.20 * clamp(N.y, 0.0, 1.0);',
+  '    col = base * (amb + ndl * 0.80);',
+  '    vec3 V = normalize(uCam - vW);',
+  '    vec3 H = normalize(L + V);',
+  '    col += vec3(1.0) * pow(max(dot(N, H), 0.0), 26.0) * 0.12 * uEmis;',
+  '    col = mix(col, base * 1.9, uEmis);',
+  '  }',
+  '  col = mix(col, uFog, fog);',
+  '  gl_FragColor = vec4(col, uAlpha);',
+  '}'
+].join('\n');
+
+const SH = { prog: null, loc: {} };
+function shader(type, src) {
+  const s = GL.createShader(type);
+  GL.shaderSource(s, src); GL.compileShader(s);
+  if (!GL.getShaderParameter(s, GL.COMPILE_STATUS)) {
+    console.error('着色器编译失败: ' + GL.getShaderInfoLog(s)); return null;
+  }
+  return s;
+}
+function initGL() {
+  GL = CV.getContext('webgl', { alpha: false, antialias: true, depth: true, powerPreference: 'high-performance' })
+    || CV.getContext('experimental-webgl', { alpha: false, antialias: true, depth: true });
+  if (!GL) return false;
+  const vs = shader(GL.VERTEX_SHADER, VS_SRC), fs = shader(GL.FRAGMENT_SHADER, FS_SRC);
+  if (!vs || !fs) return false;
+  const p = GL.createProgram();
+  GL.attachShader(p, vs); GL.attachShader(p, fs); GL.linkProgram(p);
+  if (!GL.getProgramParameter(p, GL.LINK_STATUS)) { console.error('链接失败: ' + GL.getProgramInfoLog(p)); return false; }
+  SH.prog = p; GL.useProgram(p);
+  ['aPos', 'aNrm', 'aUV', 'aCol'].forEach(a => SH.loc[a] = GL.getAttribLocation(p, a));
+  ['uProj', 'uView', 'uModel', 'uTint', 'uUseTex', 'uTex', 'uFog', 'uFogNear', 'uFogFar', 'uCam', 'uAlpha', 'uEmis', 'uUnlit']
+    .forEach(u => SH.loc[u] = GL.getUniformLocation(p, u));
+  GL.enable(GL.DEPTH_TEST);
+  GL.depthFunc(GL.LEQUAL);
+  GL.disable(GL.CULL_FACE);          // 模型多为简单盒体，关掉背面剔除以免漏面
+  GL.clearColor(0.55, 0.60, 0.63, 1);
+  return true;
+}
+
+/* ------------------------------------------------------------- 9.3 程序化纹理 */
+/* 全部用 canvas 现场画出来，保持「单文件、零依赖、离线可用」 */
+function makeTex(size, fn) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  fn(c.getContext('2d'), size);
+  const t = GL.createTexture();
+  GL.bindTexture(GL.TEXTURE_2D, t);
+  GL.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, GL.RGBA, GL.UNSIGNED_BYTE, c);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR_MIPMAP_LINEAR);
+  GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
+  GL.generateMipmap(GL.TEXTURE_2D);
+  return t;
+}
+const TEX = {};
+function buildTextures() {
+  const R = mulberry32(90210);
+  /* 草地：军校绿底 + 噪声斑块 */
+  TEX.grass = makeTex(256, (g, S) => {
+    g.fillStyle = '#5c6b42'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 2600; i++) {
+      const x = R() * S, y = R() * S, r = 2 + R() * 11;
+      const v = R();
+      g.fillStyle = 'rgba(' + (v < 0.5 ? '74,88,50' : '116,132,84') + ',' + (0.16 + R() * 0.34).toFixed(2) + ')';
+      g.beginPath(); g.ellipse(x, y, r, r * (0.4 + R() * 0.8), R() * 3.14, 0, 6.29); g.fill();
+    }
+    for (let i = 0; i < 900; i++) {   // 草叶
+      const x = R() * S, y = R() * S;
+      g.strokeStyle = 'rgba(' + (R() < 0.5 ? '132,150,92' : '60,72,42') + ',' + (0.20 + R() * 0.4).toFixed(2) + ')';
+      g.lineWidth = 0.8 + R();
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - 0.5) * 4, y - 2 - R() * 4); g.stroke();
+    }
+  });
+  /* 沥青：深灰 + 细骨料 */
+  TEX.road = makeTex(256, (g, S) => {
+    g.fillStyle = '#4a4a48'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 4200; i++) {
+      const x = R() * S, y = R() * S, r = 0.6 + R() * 2.4;
+      const v = R();
+      g.fillStyle = 'rgba(' + (v < 0.5 ? '34,34,34' : '104,102,96') + ',' + (0.10 + R() * 0.42).toFixed(2) + ')';
+      g.beginPath(); g.arc(x, y, r, 0, 6.29); g.fill();
+    }
+    g.strokeStyle = 'rgba(28,28,28,.30)'; g.lineWidth = 1;   // 裂纹
+    for (let i = 0; i < 14; i++) {
+      g.beginPath(); let x = R() * S, y = R() * S; g.moveTo(x, y);
+      for (let k = 0; k < 5; k++) { x += (R() - 0.5) * 40; y += (R() - 0.5) * 40; g.lineTo(x, y); }
+      g.stroke();
+    }
+  });
+  /* 泥土（路肩、弹坑） */
+  TEX.dirt = makeTex(128, (g, S) => {
+    g.fillStyle = '#6b5f47'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 1600; i++) {
+      const x = R() * S, y = R() * S, r = 1 + R() * 6;
+      g.fillStyle = 'rgba(' + (R() < 0.5 ? '86,74,54' : '134,120,92') + ',' + (0.14 + R() * 0.34).toFixed(2) + ')';
+      g.beginPath(); g.arc(x, y, r, 0, 6.29); g.fill();
+    }
+  });
+  /* 树皮 */
+  TEX.bark = makeTex(128, (g, S) => {
+    g.fillStyle = '#3f372c'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 240; i++) {
+      g.strokeStyle = 'rgba(' + (R() < 0.5 ? '30,26,20' : '82,72,58') + ',' + (0.2 + R() * 0.4).toFixed(2) + ')';
+      g.lineWidth = 0.8 + R() * 2.2;
+      const x = R() * S;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (R() - 0.5) * 9, S); g.stroke();
+    }
+  });
+  /* 军绿（车辆帆布 / 装备） */
+  TEX.canvasCloth = makeTex(128, (g, S) => {
+    g.fillStyle = '#57603f'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 900; i++) {
+      g.fillStyle = 'rgba(' + (R() < 0.5 ? '68,76,50' : '96,104,72') + ',' + (0.2 + R() * 0.3).toFixed(2) + ')';
+      g.fillRect(R() * S, R() * S, 2 + R() * 8, 1 + R() * 3);
+    }
+  });
+  /* 水面 */
+  TEX.water = makeTex(128, (g, S) => {
+    g.fillStyle = '#2f4757'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 220; i++) {
+      g.strokeStyle = 'rgba(150,190,210,' + (0.05 + R() * 0.16).toFixed(2) + ')';
+      g.lineWidth = 0.8 + R() * 2;
+      const y = R() * S;
+      g.beginPath(); g.moveTo(0, y); g.lineTo(S, y + (R() - 0.5) * 4); g.stroke();
+    }
+  });
+}
+
+/* --------------------------------------------------------- 9.4 网格构建器 */
+/* 顶点色 = 部位基色；uTint 提供阵营色调（静态场景固定为白） */
+function MB() { this.p = []; this.n = []; this.u = []; this.c = []; this.i = []; this.nv = 0; }
+MB.prototype.quad = function (a, b, c, d, nx, ny, nz, col, uv) {
+  const b0 = this.nv;
+  const pts = [a, b, c, d];
+  for (let k = 0; k < 4; k++) {
+    const v = pts[k];
+    this.p.push(v[0], v[1], v[2]);
+    this.n.push(nx, ny, nz);
+    this.u.push(uv ? uv[k * 2] : (k === 1 || k === 2 ? 1 : 0), uv ? uv[k * 2 + 1] : (k >= 2 ? 1 : 0));
+    this.c.push(col[0], col[1], col[2]);
+  }
+  this.i.push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+  this.nv += 4;
+};
+const WHT = [1, 1, 1];
+MB.prototype.box = function (cx, cy, cz, sx, sy, sz, col, uv) {
+  col = col || WHT;
+  const x0 = cx - sx / 2, x1 = cx + sx / 2, y0 = cy - sy / 2, y1 = cy + sy / 2, z0 = cz - sz / 2, z1 = cz + sz / 2;
+  const q = (a, b, c, d, nx, ny, nz) => this.quad(a, b, c, d, nx, ny, nz, col, uv);
+  q([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], 1, 0, 0);
+  q([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], -1, 0, 0);
+  q([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], 0, 1, 0);
+  q([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], 0, -1, 0);
+  q([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], 0, 0, 1);
+  q([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], 0, 0, -1);
+};
+MB.prototype.cyl = function (cx, cy, cz, r, h, seg, col, rTop, axis) {
+  col = col || WHT; rTop = rTop === undefined ? r : rTop;
+  const y0 = cy - h / 2, y1 = cy + h / 2;
+  for (let i = 0; i < seg; i++) {
+    const a0 = i / seg * 6.283185, a1 = (i + 1) / seg * 6.283185;
+    const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+    const nx = (c0 + c1) / 2, nz = (s0 + s1) / 2;
+    if (axis === 'x') {   // 沿 X 轴的圆柱（车轮）
+      this.quad([cx - h / 2, y0 + r * c0, cz + r * s0], [cx + h / 2, y0 + r * c0, cz + r * s0],
+        [cx + h / 2, y0 + r * c1, cz + r * s1], [cx - h / 2, y0 + r * c1, cz + r * s1], 0, nx, nz, col);
+    } else if (axis === 'z') {  // 沿 Z 轴
+      this.quad([cx + r * c0, y0 + r * s0, cz - h / 2], [cx + r * c1, y0 + r * s1, cz - h / 2],
+        [cx + r * c1, y0 + r * s1, cz + h / 2], [cx + r * c0, y0 + r * s0, cz + h / 2], nx, nz, 0, col);
+    } else {
+      this.quad([cx + r * c0, y0, cz + r * s0], [cx + r * c1, y0, cz + r * s1],
+        [cx + rTop * c1, y1, cz + rTop * s1], [cx + rTop * c0, y1, cz + rTop * s0], nx, 0, nz, col);
+      if (rTop > 0.001) this.quad([cx + rTop * c0, y1, cz + rTop * s0], [cx + rTop * c1, y1, cz + rTop * s1],
+        [cx, y1, cz], [cx, y1, cz], 0, 1, 0, col);
+      else this.quad([cx, y1, cz], [cx, y1, cz], [cx, y1, cz], [cx, y1, cz], 0, 1, 0, col);
+    }
+  }
+};
+MB.prototype.upload = function () {
+  const idx = this.nv > 65535 ? new Uint32Array(this.i) : new Uint16Array(this.i);
+  const o = {
+    n: this.i.length,
+    pos: GL.createBuffer(), nrm: GL.createBuffer(), uv: GL.createBuffer(), col: GL.createBuffer(), idx: GL.createBuffer(),
+    type: this.nv > 65535 ? GL.UNSIGNED_INT : GL.UNSIGNED_SHORT,
+    big: this.nv > 65535,
+  };
+  const put = (buf, data) => { GL.bindBuffer(GL.ARRAY_BUFFER, buf); GL.bufferData(GL.ARRAY_BUFFER, new Float32Array(data), GL.STATIC_DRAW); };
+  put(o.pos, this.p); put(o.nrm, this.n); put(o.uv, this.u); put(o.col, this.c);
+  GL.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, o.idx);
+  GL.bufferData(GL.ELEMENT_ARRAY_BUFFER, idx, GL.STATIC_DRAW);
+  return o;
+};
+MB.prototype.uploadDynamic = function () {
+  /* 动态网格：顶点数据每帧变化，用 DYNAMIC_DRAW。这里复用 upload 但标记 */
+  const o = this.upload();
+  o.dynamic = true;
+  return o;
+};
+
+/* 地面/路面用世界坐标算 UV，保证纹理平铺密度一致 */
+MB.prototype.quadUV = function (a, b, c, d, nx, ny, nz, col, uvScale) {
+  const uv = [a[0], a[2], b[0], b[2], c[0], c[2], d[0], d[2]].map(v => v / uvScale);
+  this.quad(a, b, c, d, nx, ny, nz, col, uv);
+};
+
+/* ------------------------------------------------------- 9.5 模型：士兵/车辆 */
+/* 顶点色是「部位明暗」，阵营色调由 uTint 提供：我方偏军绿、敌方偏褐红 */
+const SOLDIER_COL = {
+  body: [0.34, 0.40, 0.27],
+  gear: [0.20, 0.22, 0.17],
+  skin: [0.72, 0.58, 0.46],
+  gun: [0.13, 0.13, 0.14],
+};
+let MESH_SOLDIER = null, MESH_SOLDIER_DOWN = null;
+function buildSoldierMesh(downed) {
+  const m = new MB();
+  const C = SOLDIER_COL;
+  if (downed) {
+    /* 倒地：整体躺平 + 血泊 */
+    m.box(0, 3.0, 0, 26, 9, 13, C.body);           // 躯干（横躺）
+    m.box(15, 4.0, 0, 9, 8, 9, C.gear);            // 头
+    m.box(-16, 2.5, 0, 14, 7, 11, C.body);         // 腿
+    m.quad([-11, 0.35, -16], [11, 0.35, -16], [11, 0.35, 16], [-11, 0.35, 16], 0, 1, 0, [0.32, 0.02, 0.02]);
+    return m.upload();
+  }
+  /* 站立：腿 / 躯干 / 头 / 手臂 / 枪，约 1.7 m 高（×20 单位） */
+  m.box(-3.4, 15, 0, 6.5, 30, 8, C.body);          // 左腿
+  m.box(3.4, 15, 0, 6.5, 30, 8, C.body);           // 右腿
+  m.box(0, 38, 0, 17, 20, 12, C.body);             // 躯干
+  m.box(0, 40, 0, 18.5, 13, 13.5, C.gear);         // 战术背心
+  m.box(0, 51.5, 0, 9.5, 9.5, 9.5, C.gear);        // 头盔
+  m.box(1.2, 49.5, 0, 5.5, 5, 10, C.skin);         // 面部
+  m.box(0, 36, -8.2, 6, 15, 5.5, C.body);          // 左臂
+  m.box(0, 36, 8.2, 6, 15, 5.5, C.body);           // 右臂
+  m.box(9, 37, 6.5, 20, 2.6, 2.2, C.gun);          // 枪身
+  m.box(17, 37, 6.5, 6, 2.2, 2.0, C.gun);          // 枪管
+  m.box(2, 34.5, 6.5, 4, 6, 2.6, C.gun);           // 弹匣
+  return m.upload();
+}
+
+let MESH_VEH = {};
+function buildVehicleMesh(type) {
+  const m = new MB();
+  const G = [0.30, 0.34, 0.24], D = [0.14, 0.15, 0.13], W = [0.075, 0.075, 0.078], GLASS = [0.16, 0.22, 0.24];
+  if (type === 'jeep') {
+    m.box(0, 11, 0, 46, 7, 24, G);
+    m.box(11, 16, 0, 20, 5, 22, G);                 // 引擎盖
+    m.box(-6, 18, 0, 20, 8, 22, G);                 // 座舱
+    m.box(-6, 22.5, 0, 18, 4, 20, GLASS);           // 风挡
+    m.box(-20, 19, 0, 5, 9, 23, D);
+    m.cyl(0, 6, -13, 6.4, 4.5, 12, W, 6.4, 'x'); m.cyl(0, 6, 13, 6.4, 4.5, 12, W, 6.4, 'x');
+    m.cyl(-15, 6, -13, 6.4, 4.5, 12, W, 6.4, 'x'); m.cyl(-15, 6, 13, 6.4, 4.5, 12, W, 6.4, 'x');
+    m.box(-15, 24, 4, 14, 2.4, 2.2, D);             // 车顶机枪
+  } else if (type === 'apc') {
+    m.box(0, 15, 0, 60, 16, 30, G);
+    m.box(14, 26, 0, 26, 8, 26, G);                 // 上层
+    m.box(12, 30, 0, 22, 4, 22, GLASS);
+    m.box(-2, 32, 0, 22, 10, 22, G);                // 炮塔
+    m.box(9, 32.5, 0, 22, 2.6, 2.4, D);             // 机炮
+    m.cyl(0, 7, -16, 7.4, 5.5, 12, W, 7.4, 'x'); m.cyl(0, 7, 16, 7.4, 5.5, 12, W, 7.4, 'x');
+    m.cyl(-19, 7, -16, 7.4, 5.5, 12, W, 7.4, 'x'); m.cyl(-19, 7, 16, 7.4, 5.5, 12, W, 7.4, 'x');
+    m.cyl(19, 7, -16, 7.4, 5.5, 12, W, 7.4, 'x'); m.cyl(19, 7, 16, 7.4, 5.5, 12, W, 7.4, 'x');
+  } else if (type === 'tank') {
+    m.box(-2, 11, 0, 70, 13, 38, G);                // 车体
+    m.box(-2, 6, -17.5, 72, 12, 8, D);              // 履带
+    m.box(-2, 6, 17.5, 72, 12, 8, D);
+    m.box(24, 16, 0, 24, 5, 32, G);                 // 首上
+    m.box(0, 24, 0, 40, 14, 30, G);                 // 炮塔
+    m.box(16, 25, 0, 26, 12, 26, G);
+    m.box(34, 25.5, 0, 34, 4.2, 4.2, D);            // 主炮
+    m.box(-16, 32, 0, 10, 5, 12, D);                // 后舱盖
+  } else {                                          // truck
+    m.box(18, 14, 0, 22, 18, 28, G);                // 驾驶室
+    m.box(20, 26, 0, 18, 6, 26, GLASS);
+    m.box(-12, 17, 0, 44, 24, 30, [0.33, 0.36, 0.26]);  // 帆布车厢
+    m.box(30, 8, 0, 10, 8, 28, D);
+    m.cyl(20, 7, -14, 7, 5.5, 12, W, 7, 'x'); m.cyl(20, 7, 14, 7, 5.5, 12, W, 7, 'x');
+    m.cyl(-16, 7, -14, 7, 5.5, 12, W, 7, 'x'); m.cyl(-16, 7, 14, 7, 5.5, 12, W, 7, 'x');
+    m.cyl(-26, 7, -14, 7, 5.5, 12, W, 7, 'x'); m.cyl(-26, 7, 14, 7, 5.5, 12, W, 7, 'x');
+    m.box(-12, 30, 0, 42, 2.5, 27, D);
+  }
+  return m.upload();
+}
+
+/* 第一人称武器（视图空间绘制，所以模型中心在原点、朝向 -Z 之外由变换负责） */
+let MESH_WPN = null;
+function buildWeaponMesh() {
+  const m = new MB();
+  const D = [0.10, 0.10, 0.11], M = [0.16, 0.16, 0.17], W = [0.30, 0.26, 0.20], G = [0.20, 0.21, 0.23];
+  m.box(0, 0, 0, 46, 4.2, 4.6, M);                  // 机匣
+  m.box(30, 0, 0, 40, 2.2, 2.6, D);                 // 枪管
+  m.box(52, 0.6, 0, 8, 2.8, 3.0, D);                // 枪口制退器
+  m.box(6, -7, 0, 7, 9, 4.4, D);                    // 弹匣
+  m.box(6, -1, -6.5, 4, 3, 2.6, G);                 // 拉机柄
+  m.box(12, 1.6, 0, 26, 2.6, 2.8, G);               // 导轨
+  m.box(4, 2.6, 0, 7, 3, 5.4, M);                   // 光学瞄具
+  m.box(34, 2.4, 0, 3, 2.4, 2.6, G);                // 前准星
+  m.box(-14, -2, 0, 16, 7, 3.6, W);                 // 枪托
+  m.box(-2, -6, 0, 6, 9, 4.2, M);                   // 握把
+  return m.upload();
+}
+
+/* 辅助网格：发光体（爆炸/火光/箱子的光晕）、密码箱、地面圆盘（弹坑） */
+let MESH_GLOW = null, MESH_BOX = null, MESH_DISC = null;
+function buildAuxMeshes() {
+  /* 发光体：沿三个轴交叉的薄板，任意角度看都有体积感，比球省顶点 */
+  const gm = new MB(), WC = [1, 1, 1];
+  const S = 0.5;
+  gm.quad([-S, 0, 0], [0, S, 0], [S, 0, 0], [0, -S, 0], 0, 0, 1, WC);
+  gm.quad([0, 0, -S], [0, S, 0], [0, 0, S], [0, -S, 0], 1, 0, 0, WC);
+  gm.quad([-S, 0, 0], [0, 0, -S], [S, 0, 0], [0, 0, S], 0, 1, 0, WC);
+  MESH_GLOW = gm.upload();
+
+  const bm = new MB();
+  bm.box(0, 0, 0, 14, 9, 10, [0.85, 0.78, 0.55]);
+  bm.box(0, 5.5, 0, 9, 2, 11, [0.55, 0.50, 0.38]);
+  bm.box(0, 0, 0, 15, 3, 11, [0.40, 0.38, 0.32]);
+  MESH_BOX = bm.upload();
+
+  const dm = new MB();
+  dm.quad([-10, 0, -10], [10, 0, -10], [10, 0, 10], [-10, 0, 10], 0, 1, 0, WC);
+  MESH_DISC = dm.upload();
+}
+
+/* ------------------------------------------------------------ 9.6 静态场景 */
+let SCENE = { ground: null, road: null, water: null, props: null, bridge: null };
+function buildTerrain() {
+  /* 地面 */
+  const gm = new MB();
+  const W = CFG.W, H = CFG.H;
+  gm.quadUV([-40, 0, -40], [W + 40, 0, -40], [W + 40, 0, H + 40], [-40, 0, H + 40], 0, 1, 0, WHT, 150);
+  SCENE.ground = gm.upload();
+
+  /* 公路：沿 ROAD_PATH 生成条带 */
+  const rm = new MB();
+  const hw = (CFG.roadBot - CFG.roadTop) / 2 + 12;   // 半宽（含路肩）
+  for (let i = 0; i < ROAD_PATH.length - 1; i++) {
+    const a = ROAD_PATH[i], b = ROAD_PATH[i + 1];
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    const nx = -dy / L * hw, ny = dx / L * hw;
+    rm.quadUV([a[0] + nx, 0.6, a[1] + ny], [b[0] + nx, 0.6, b[1] + ny],
+      [b[0] - nx, 0.6, b[1] - ny], [a[0] - nx, 0.6, a[1] - ny], 0, 1, 0, [1, 1, 1], 34);
+  }
+  SCENE.road = rm.upload();
+
+  /* 河流 */
+  const wm = new MB();
+  wm.quadUV([CFG.riverX1, -2.5, 0], [CFG.riverX2, -2.5, 0], [CFG.riverX2, -2.5, H], [CFG.riverX1, -2.5, H], 0, 1, 0, WHT, 60);
+  SCENE.water = wm.upload();
+
+  /* 桥梁 */
+  const bm = new MB();
+  bm.box((CFG.riverX1 + CFG.riverX2) / 2, 2, (CFG.bridgeY1 + CFG.bridgeY2) / 2,
+    CFG.riverX2 - CFG.riverX1 + 20, 6, CFG.bridgeY2 - CFG.bridgeY1, [0.42, 0.40, 0.36]);
+  bm.box((CFG.riverX1 + CFG.riverX2) / 2, 7, CFG.bridgeY1 - 3, CFG.riverX2 - CFG.riverX1 + 20, 8, 3, [0.36, 0.34, 0.30]);
+  bm.box((CFG.riverX1 + CFG.riverX2) / 2, 7, CFG.bridgeY2 + 3, CFG.riverX2 - CFG.riverX1 + 20, 8, 3, [0.36, 0.34, 0.30]);
+  SCENE.bridge = bm.upload();
+
+  /* 道具：树 / 岩石 / 油桶，全部烘焙成一个大网格（一次 draw call） */
+  const pm = new MB();
+  const R = mulberry32(7771);
+  for (const p of World.props) {
+    if (p.type === 'tree') {
+      const h = (p.r || 26) * (1.5 + R() * 0.5);
+      pm.cyl(p.x, h * 0.42, p.y, p.r * 0.16, h * 0.84, 7, [0.55, 0.48, 0.40]);
+      /* 树冠：两层圆锥 */
+      const cr = p.r * (0.85 + R() * 0.25);
+      pm.cyl(p.x, h * 0.72, p.y, cr, h * 0.62, 9, [0.30 + R() * 0.06, 0.42 + R() * 0.07, 0.20], 0);
+      pm.cyl(p.x, h * 0.95, p.y, cr * 0.62, h * 0.44, 9, [0.33 + R() * 0.06, 0.46 + R() * 0.07, 0.22], 0);
+    } else if (p.type === 'rock') {
+      const s = p.r * 1.7;
+      const g = [0.40, 0.40, 0.38];
+      pm.box(p.x, s * 0.34, p.y, s, s * 0.78, s * 0.86, g);
+      pm.box(p.x + s * 0.22, s * 0.60, p.y - s * 0.14, s * 0.62, s * 0.5, s * 0.55, [0.46, 0.46, 0.44]);
+    } else if (p.type === 'barrel') {
+      pm.cyl(p.x, 9, p.y, 6.5, 18, 10, [0.44, 0.30, 0.16]);
+      pm.cyl(p.x, 18, p.y, 6.5, 1.6, 10, [0.34, 0.36, 0.32]);
+    } else if (p.type === 'wall') {
+      pm.box(p.x, 8, p.y, (p.r || 20) * 2, 16, 10, [0.46, 0.44, 0.40]);
+    } else if (p.type === 'trench') {
+      pm.box(p.x, 0.8, p.y, (p.r || 20) * 2, 1.6, 16, [0.30, 0.26, 0.20]);
+    } else if (p.type === 'bush') {
+      pm.cyl(p.x, 7, p.y, (p.r || 12) * 0.9, 12, 8, [0.28, 0.36, 0.20]);
+    }
+  }
+  /* 弹坑（decal）单独一帧绘制太碎，静态的先烘焙一层 */
+  SCENE.props = pm.upload();
+  return true;
+}
+/* 重新开局时先释放旧的 GL 缓冲，避免反复 buildTerrain 造成显存泄漏 */
+function disposeScene() {
+  for (const k in SCENE) {
+    const m = SCENE[k];
+    if (!m) continue;
+    try {
+      GL.deleteBuffer(m.pos); GL.deleteBuffer(m.nrm); GL.deleteBuffer(m.uv);
+      GL.deleteBuffer(m.col); GL.deleteBuffer(m.idx);
+    } catch (e) { /* 忽略 */ }
+    SCENE[k] = null;
+  }
+}
+
+
+/* =========================================================================
+   9.7 第一人称相机 / 9.8 场景渲染 / 9.9 HUD
+   ========================================================================= */
+
+const EYE = 33;         // 站立眼高 ≈1.65 m
+const EYE_CROUCH = 21;  // 蹲下眼高
+const NEAR = 1.6, FAR = 9000;
+
+const Cam = {
+  x: 0, y: EYE, z: 0,
+  yaw: 0, pitch: 0,
+  eyeY: EYE, crouch: 0,
+  fov: 1.30, fovBase: 1.30, fovTarget: 1.30,
+  ads: 0, adsTarget: 0,
+  recoilP: 0, recoilY: 0, recoilVP: 0,
+  bob: 0, bobY: 0, walkPhase: 0,
+  shake: 0,
+  locked: false, sens: 0.0021,
+  lastX: 0, lastZ: 0, spd: 0,
+  proj: m4new(), view: m4new(), vp: m4new(), skyProj: m4new(),
+  fx: 0, fy: 0, fz: 0,      // 前向
+  rx: 0, rz: 0,             // 右向
+};
+
+const FOG = {
+  sunny: [0.62, 0.68, 0.70], rain: [0.44, 0.48, 0.50],
+  night: [0.055, 0.075, 0.115],
+};
+function fogColor() {
+  const c = FOG[World.weather] || FOG.sunny;
+  if (World.weather === 'night') return c;
+  /* 雨天整体压暗一点，晴天偏暖 */
+  return World.weather === 'rain' ? c : [c[0] * 1.02, c[1] * 1.0, c[2] * 0.98];
+}
 
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   view.dpr = dpr;
   const w = window.innerWidth, h = window.innerHeight;
-  CV.width = Math.floor(w * dpr); CV.height = Math.floor(h * dpr);
-  CV.style.width = w + 'px'; CV.style.height = h + 'px';
   view.w = w; view.h = h;
-  MM.width = 262 * 2; MM.height = 150 * 2;
+  view.bw = Math.floor(w * dpr); view.bh = Math.floor(h * dpr);
+  CV.width = view.bw; CV.height = view.bh;
+  CV.style.width = w + 'px'; CV.style.height = h + 'px';
+  HUDC.width = Math.floor(w * dpr); HUDC.height = Math.floor(h * dpr);
+  HUDC.style.width = w + 'px'; HUDC.style.height = h + 'px';
+  HCTX.setTransform(dpr, 0, 0, dpr, 0, 0);
+  MM.width = 468; MM.height = 380;
+  m4persp(Cam.proj, Cam.fov, Math.max(0.2, w / Math.max(1, h)), NEAR, FAR);
 }
 window.addEventListener('resize', resize);
 
-function buildTerrain() {
-  const c = document.createElement('canvas');
-  c.width = CFG.W; c.height = CFG.H;
-  const g = c.getContext('2d');
-  const R = mulberry32(12345);
-  /* 草地底色 */
-  const grd = g.createLinearGradient(0, 0, 0, CFG.H);
-  grd.addColorStop(0, '#7f8d5c'); grd.addColorStop(0.5, '#8b9663'); grd.addColorStop(1, '#79855a');
-  g.fillStyle = grd; g.fillRect(0, 0, CFG.W, CFG.H);
-  for (let i = 0; i < 900; i++) {
-    const x = R() * CFG.W, y = R() * CFG.H, r = 14 + R() * 54;
-    g.fillStyle = 'rgba(' + (R() < 0.5 ? '104,116,74' : '146,156,108') + ',' + (0.10 + R() * 0.16).toFixed(2) + ')';
-    g.beginPath(); g.ellipse(x, y, r, r * (0.5 + R() * 0.6), R() * 3.14, 0, 6.29); g.fill();
-  }
-  /* 小河（南北向） */
-  g.save();
-  g.beginPath();
-  g.moveTo(CFG.riverX1, 0);
-  for (let y = 0; y <= CFG.H; y += 40) g.lineTo(CFG.riverX1 + Math.sin(y / 130) * 12, y);
-  for (let y = CFG.H; y >= 0; y -= 40) g.lineTo(CFG.riverX2 + Math.sin(y / 110 + 1) * 12, y);
-  g.closePath();
-  g.fillStyle = '#5d86a8'; g.fill();
-  g.strokeStyle = 'rgba(70,105,130,.6)'; g.lineWidth = 3; g.stroke();
-  g.clip();
-  for (let i = 0; i < 90; i++) {
-    const y = R() * CFG.H;
-    g.strokeStyle = 'rgba(210,230,240,' + (0.06 + R() * 0.12).toFixed(2) + ')';
-    g.lineWidth = 1 + R() * 2;
-    g.beginPath(); g.moveTo(CFG.riverX1, y); g.lineTo(CFG.riverX2, y + R() * 8 - 4); g.stroke();
-  }
-  g.restore();
-  /* 河谷砾石滩 */
-  g.fillStyle = 'rgba(176,168,142,.45)';
-  g.fillRect(CFG.riverX1 - 16, 0, 16, CFG.H);
-  g.fillRect(CFG.riverX2, 0, 16, CFG.H);
-  /* 公路（东→西） */
-  const drawRoad = (w, color) => {
-    g.strokeStyle = color; g.lineWidth = w; g.lineJoin = 'round'; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(ROAD_PATH[0][0], ROAD_PATH[0][1]);
-    for (let i = 1; i < ROAD_PATH.length; i++) g.lineTo(ROAD_PATH[i][0], ROAD_PATH[i][1]);
-    g.stroke();
-  };
-  drawRoad(CFG.roadBot - CFG.roadTop + 26, '#8d8468');
-  drawRoad(CFG.roadBot - CFG.roadTop, '#b3a985');
-  drawRoad(20, 'rgba(196,186,152,.55)');
-  /* 车辙 */
-  g.strokeStyle = 'rgba(120,110,86,.45)'; g.lineWidth = 3;
-  for (const off of [-22, 22]) {
-    g.beginPath();
-    for (let i = 0; i < CONVOY_WAY.length; i++) { const p = CONVOY_WAY[i]; if (i === 0) g.moveTo(p.x, p.y + off); else g.lineTo(p.x, p.y + off); }
-    g.stroke();
-  }
-  /* 土路支线 */
-  g.strokeStyle = 'rgba(160,150,120,.5)'; g.lineWidth = 10; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(880, 660); g.quadraticCurveTo(830, 780, 800, 900); g.stroke();
-  g.beginPath(); g.moveTo(1080, 640); g.quadraticCurveTo(1090, 480, 1090, 360); g.stroke();
-  g.beginPath(); g.moveTo(360, 660); g.quadraticCurveTo(330, 780, 320, 880); g.stroke();
-  /* 静态掩体 */
-  for (const p of World.props) drawProp(g, p, true);
-  /* 场地点位字母 */
-  return c;
-}
-function drawProp(g, p, staticMode) {
-  if (p.destroyed) return;
-  switch (p.type) {
-    case 'rock': {
-      g.save(); g.translate(p.x, p.y);
-      if (!p.pts) {
-        p.pts = []; const n = 7;
-        for (let i = 0; i < n; i++) { const a = i / n * 6.283 + RNG() * 0.12; const rr2 = p.r * (0.78 + RNG() * 0.36); p.pts.push([Math.cos(a) * rr2, Math.sin(a) * rr2 * 0.85]); }
-      }
-      g.fillStyle = 'rgba(40,44,32,.30)'; g.beginPath();
-      p.pts.forEach((q, i) => { const vx = q[0] + 3, vy = q[1] + 4; i ? g.lineTo(vx, vy) : g.moveTo(vx, vy); }); g.closePath(); g.fill();
-      const gr = g.createLinearGradient(-p.r, -p.r, p.r, p.r);
-      gr.addColorStop(0, '#a8a89e'); gr.addColorStop(1, '#7a7a72');
-      g.fillStyle = gr; g.beginPath();
-      p.pts.forEach((q, i) => { i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); g.fill();
-      g.strokeStyle = 'rgba(60,60,54,.7)'; g.lineWidth = 1.4; g.stroke();
-      g.restore(); break;
-    }
-    case 'tree': {
-      g.save(); g.translate(p.x, p.y);
-      g.fillStyle = 'rgba(30,40,24,.28)'; g.beginPath(); g.ellipse(3, 4, p.r * 1.05, p.r * 0.9, 0, 0, 6.29); g.fill();
-      g.fillStyle = '#4e6b39'; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.fill();
-      g.fillStyle = '#5f7e42'; g.beginPath(); g.arc(-p.r * 0.22, -p.r * 0.22, p.r * 0.62, 0, 6.29); g.fill();
-      g.strokeStyle = 'rgba(34,48,26,.8)'; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.stroke();
-      g.restore(); break;
-    }
-    case 'bush': {
-      g.save(); g.translate(p.x, p.y);
-      g.fillStyle = 'rgba(96,116,64,.9)';
-      for (const q of [[-p.r * .5, 0], [p.r * .5, 0], [0, -p.r * .35], [0, p.r * .4]]) { g.beginPath(); g.arc(q[0], q[1], p.r * 0.62, 0, 6.29); g.fill(); }
-      g.restore(); break;
-    }
-    case 'trench': {
-      g.save(); g.translate(p.x, p.y);
-      g.fillStyle = 'rgba(78,70,50,.85)';
-      g.beginPath(); g.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 8); g.fill();
-      g.strokeStyle = 'rgba(196,182,144,.85)'; g.lineWidth = 3; g.setLineDash([]);
-      g.beginPath(); g.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 8); g.stroke();
-      g.restore(); break;
-    }
-    case 'wall': {
-      g.save(); g.translate(p.x, p.y);
-      g.fillStyle = 'rgba(40,40,34,.3)'; g.beginPath(); g.roundRect(-p.r + 3, -p.r * 0.7 + 4, p.r * 2, p.r * 1.4, 4); g.fill();
-      const gr = g.createLinearGradient(0, -p.r, 0, p.r);
-      gr.addColorStop(0, '#b0a892'); gr.addColorStop(1, '#8a8270');
-      g.fillStyle = gr; g.beginPath(); g.roundRect(-p.r, -p.r * 0.7, p.r * 2, p.r * 1.4, 4); g.fill();
-      g.strokeStyle = 'rgba(60,58,48,.8)'; g.lineWidth = 1.5; g.stroke();
-      g.restore(); break;
-    }
-    case 'barrel': {
-      g.save(); g.translate(p.x, p.y);
-      g.fillStyle = 'rgba(40,34,26,.35)'; g.beginPath(); g.arc(2, 3, p.r + 1, 0, 6.29); g.fill();
-      g.fillStyle = '#c8762c'; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.fill();
-      g.strokeStyle = '#f0d090'; g.lineWidth = 1.6; g.beginPath(); g.arc(0, 0, p.r * 0.6, 0, 6.29); g.stroke();
-      g.strokeStyle = 'rgba(80,40,10,.8)'; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.stroke();
-      g.restore(); break;
-    }
-  }
-}
-
+/* ------------------------------------------------------------ 相机更新 */
 function camFollow(dt) {
   const p = World.player;
-  const tx = clamp((p ? p.x : CFG.W / 2) - view.w / 2, 0, Math.max(0, CFG.W - view.w));
-  const ty = clamp((p ? p.y : CFG.H / 2) - view.h / 2, 0, Math.max(0, CFG.H - view.h));
-  World.cam.x = lerp(World.cam.x, tx, Math.min(1, dt * 5));
-  World.cam.y = lerp(World.cam.y, ty, Math.min(1, dt * 5));
-  if (view.w >= CFG.W) World.cam.x = (CFG.W - view.w) / 2;
-  if (view.h >= CFG.H) World.cam.y = (CFG.H - view.h) / 2;
+  if (!p) return;
+  Cam.crouch = (Input.key['control'] || Input.key['c']) ? 1 : 0;
+  const targetEye = Cam.crouch ? EYE_CROUCH : EYE;
+  Cam.eyeY += (targetEye - Cam.eyeY) * Math.min(1, dt * 10);
+  Cam.x = p.x; Cam.z = p.y;
+
+  /* 实际移动速度（updatePlayer 直接改坐标，没有写 vx/vy） */
+  const dx = p.x - Cam.lastX, dz = p.y - Cam.lastZ;
+  const inst = Math.hypot(dx, dz) / Math.max(0.0001, dt);
+  Cam.spd += (inst - Cam.spd) * Math.min(1, dt * 8);
+  Cam.lastX = p.x; Cam.lastZ = p.y;
+
+  /* 走路摇晃 */
+  if (Cam.spd > 4 && !p.downed && !p.dead) {
+    Cam.walkPhase += dt * (5.0 + Cam.spd * 0.06);
+    const amp = Math.min(1, Cam.spd / 90) * (Cam.ads > 0.5 ? 0.35 : 1);
+    Cam.bobY = Math.sin(Cam.walkPhase * 2) * 0.85 * amp;
+    Cam.bob = Math.sin(Cam.walkPhase) * 1.5 * amp;
+  } else {
+    Cam.bobY *= Math.max(0, 1 - dt * 6);
+    Cam.bob *= Math.max(0, 1 - dt * 6);
+  }
+  /* 后坐力回落 */
+  Cam.recoilP += (0 - Cam.recoilP) * Math.min(1, dt * 9);
+  Cam.recoilY += (0 - Cam.recoilY) * Math.min(1, dt * 9);
+  Cam.shake = Math.max(0, Cam.shake - dt * 2.6);
+
+  /* ADS 插值 */
+  Cam.ads += (Cam.adsTarget - Cam.ads) * Math.min(1, dt * 11);
+  Cam.fovTarget = Cam.fovBase * (1 - 0.42 * Cam.ads);
+  Cam.fov += (Cam.fovTarget - Cam.fov) * Math.min(1, dt * 12);
+
+  const shakeX = Cam.shake > 0 ? (RNG() - 0.5) * Cam.shake * 0.05 : 0;
+  const shakeY = Cam.shake > 0 ? (RNG() - 0.5) * Cam.shake * 0.05 : 0;
+
+  /* 逻辑层用 facing 决定射击方向 —— 第一人称下就是视角偏航 */
+  p.facing = Cam.yaw;
+  World.cam.x = p.x; World.cam.y = p.y;
+
+  const yaw = Cam.yaw + Cam.recoilY + shakeX;
+  const pitch = clamp(Cam.pitch + Cam.recoilP + shakeY, -1.35, 1.35);
+  const ex = Cam.x, ey = Cam.y = Cam.eyeY + Cam.bobY, ez = Cam.z;
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  Cam.fx = cp * cy; Cam.fy = sp; Cam.fz = cp * sy;
+  Cam.rx = -sy; Cam.rz = cy;
+
+  /* 被击中的镜头抖动 */
+  const hurt = 1 - clamp((p.hp || 100) / 100, 0, 1);
+  const hurtShake = hurt * 0.12 + (p.hitFlash > 0 ? 0.35 : 0);
+  if (hurtShake > 0.01) {
+    Cam.fx += (RNG() - 0.5) * hurtShake * 0.09;
+    Cam.fz += (RNG() - 0.5) * hurtShake * 0.09;
+    Cam.fy += (RNG() - 0.5) * hurtShake * 0.05;
+  }
+
+  const aspect = Math.max(0.2, view.w / Math.max(1, view.h));
+  m4persp(Cam.proj, Cam.fov, aspect, NEAR, FAR);
+  m4lookAt(Cam.view, ex, ey, ez, ex + Cam.fx, ey + Cam.fy, ez + Cam.fz, 0, 1, 0);
+  m4mul(Cam.vp, Cam.proj, Cam.view);
+  GL.viewport(0, 0, view.bw, view.bh);
 }
 
-function draw() {
-  const g = CTX;
-  g.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
-  g.clearRect(0, 0, view.w, view.h);
-  g.fillStyle = '#3c4430'; g.fillRect(0, 0, view.w, view.h);
-  g.save();
-  g.translate(-World.cam.x, -World.cam.y);
-  if (terrain) g.drawImage(terrain, 0, 0);
+/* ------------------------------------------------------- 绘制原语 */
+const _mdl = m4new(), _mvp = m4new();
+let _curTex = null, _curMesh = null;
+function useMesh(mesh, tex, tint, opts) {
+  const g = GL;
+  opts = opts || {};
+  g.bindBuffer(g.ARRAY_BUFFER, mesh.pos); g.vertexAttribPointer(SH.loc.aPos, 3, g.FLOAT, false, 0, 0); g.enableVertexAttribArray(SH.loc.aPos);
+  g.bindBuffer(g.ARRAY_BUFFER, mesh.nrm); g.vertexAttribPointer(SH.loc.aNrm, 3, g.FLOAT, false, 0, 0); g.enableVertexAttribArray(SH.loc.aNrm);
+  g.bindBuffer(g.ARRAY_BUFFER, mesh.uv); g.vertexAttribPointer(SH.loc.aUV, 2, g.FLOAT, false, 0, 0); g.enableVertexAttribArray(SH.loc.aUV);
+  g.bindBuffer(g.ARRAY_BUFFER, mesh.col); g.vertexAttribPointer(SH.loc.aCol, 3, g.FLOAT, false, 0, 0); g.enableVertexAttribArray(SH.loc.aCol);
+  g.bindBuffer(g.ELEMENT_ARRAY_BUFFER, mesh.idx);
+  g.uniform3f(SH.loc.uTint, tint ? tint[0] : 1, tint ? tint[1] : 1, tint ? tint[2] : 1);
+  if (tex) {
+    g.uniform1f(SH.loc.uUseTex, 1);
+    g.activeTexture(g.TEXTURE0); g.bindTexture(g.TEXTURE_2D, tex);
+    g.uniform1i(SH.loc.uTex, 0);
+  } else g.uniform1f(SH.loc.uUseTex, 0);
+  g.uniform1f(SH.loc.uAlpha, opts.alpha === undefined ? 1 : opts.alpha);
+  g.uniform1f(SH.loc.uEmis, opts.emis === undefined ? 0 : opts.emis);
+  g.uniform1f(SH.loc.uUnlit, opts.unlit ? 1 : 0);
+  _curMesh = mesh;
+}
+function setModel(x, y, z, ry, sx, sy, sz) {
+  m4trs(_mdl, x, y, z, ry, sx, sy, sz);
+  m4mul(_mvp, Cam.vp, _mdl);
+  GL.uniformMatrix4fv(SH.loc.uModel, false, _mdl);
+}
+/* 相机基向量：前 f / 右 r / 上 u（r = normalize(cross(f, up))，u = cross(r, f)） */
+function camBasis() {
+  const cp = Math.cos(Cam.pitch + Cam.recoilP), sp = Math.sin(Cam.pitch + Cam.recoilP);
+  const cy = Math.cos(Cam.yaw + Cam.recoilY), sy = Math.sin(Cam.yaw + Cam.recoilY);
+  return { f: [cp * cy, sp, cp * sy], r: [-sy, 0, cy], u: [-cy * sp, cp, -sy * sp] };
+}
+/* 把模型摆到「相机空间」的 (px,py,pz)：沿 右/上/前 偏移，朝向永远跟随视线 */
+function setModelCamSpace(px, py, pz, tilt, size) {
+  const B = camBasis();
+  const wx = Cam.x + B.r[0] * px + B.u[0] * py + B.f[0] * pz;
+  const wy = Cam.y + B.r[1] * px + B.u[1] * py + B.f[1] * pz;
+  const wz = Cam.z + B.r[2] * px + B.u[2] * py + B.f[2] * pz;
+  const ry = Math.atan2(-B.f[2], B.f[0]) + (tilt || 0);
+  const s = size === undefined ? 1 : size;
+  m4trs(_mdl, wx, wy, wz, ry, s, s, s);
+  GL.uniformMatrix4fv(SH.loc.uModel, false, _mdl);
+}
+function drawCur() { GL.drawElements(GL.TRIANGLES, _curMesh.n, _curMesh.type, 0); _drawCalls++; }
+let _drawCalls = 0;
 
-  /* 桥梁（动态，可被炸毁） */
-  drawBridge(g);
+/* ------------------------------------------------------------ 天空 */
+let MESH_SKY = null;
+function buildSky() {
+  const m = new MB();
+  /* 全屏四边形。顶点顺序 = 左上、右上、右下、左下，
+     所以「屏幕上缘两点 = 天顶色、下缘两点 = 地平线色」才是**上下**渐变。
+     （MB.quad 会给 4 个顶点填同一个颜色，必须手动改后两个顶点。）
+     每帧由 drawSky() 按天气与俯仰角重写这 4 个颜色。 */
+  const zen = [0.30, 0.44, 0.60], hor = [0.72, 0.76, 0.74];
+  m.quad([-1, 1, 0], [1, 1, 0], [1, -1, 0], [-1, -1, 0], 0, 0, 1, zen);
+  const c = m.c;
+  c[6] = hor[0]; c[7] = hor[1]; c[8] = hor[2];      // 顶点2：右下
+  c[9] = hor[0]; c[10] = hor[1]; c[11] = hor[2];    // 顶点3：左下
+  MESH_SKY = m.upload();
+}
+function drawSky() {
+  const g = GL;
+  const f = fogColor();
+  g.disable(g.DEPTH_TEST);
+  g.depthMask(false);
+  const zen = World.weather === 'night' ? [0.020, 0.035, 0.075]
+    : World.weather === 'rain' ? [0.26, 0.30, 0.33] : [0.30, 0.44, 0.62];
+  const hor = [f[0] * 0.94, f[1] * 0.94, f[2] * 0.94];
+  /* 按「屏幕上下缘对应的真实仰角」着色：地平线附近恒为雾色，抬头才有天顶蓝。
+     否则抬头/低头时天空纹丝不动，会明显穿帮。 */
+  const tanH = Math.tan(Cam.fov * 0.5);
+  const pit = Cam.pitch + Cam.recoilP;
+  const shade = e => {
+    const t = clamp(e / 1.15, 0, 1);                 // 0 = 地平线，1 ≈ 66° 天顶
+    const k = t * t * (3 - 2 * t);                   // smoothstep，避免出现色带
+    return [hor[0] + (zen[0] - hor[0]) * k,
+      hor[1] + (zen[1] - hor[1]) * k,
+      hor[2] + (zen[2] - hor[2]) * k];
+  };
+  const cT = shade(Math.atan(tanH) + pit);   // 屏幕上缘
+  const cB = shade(Math.atan(-tanH) + pit);  // 屏幕下缘
+  const c = MESH_SKY.col;
+  g.bindBuffer(g.ARRAY_BUFFER, MESH_SKY.col);
+  g.bufferSubData(g.ARRAY_BUFFER, 0, new Float32Array([
+    cT[0], cT[1], cT[2], cT[0], cT[1], cT[2],
+    cB[0], cB[1], cB[2], cB[0], cB[1], cB[2]]));
+  useMesh(MESH_SKY, null, null, { unlit: true });
+  setModel(0, 0, 0, 0, 1, 1, 1);
+  /* 用单位矩阵：直接屏幕坐标 */
+  const I = m4new(); m4ident(I);
+  g.uniformMatrix4fv(SH.loc.uModel, false, I);
+  g.uniformMatrix4fv(SH.loc.uProj, false, I);
+  g.uniformMatrix4fv(SH.loc.uView, false, I);
+  g.drawElements(g.TRIANGLES, MESH_SKY.n, MESH_SKY.type, 0);
+  g.uniformMatrix4fv(SH.loc.uProj, false, Cam.proj);
+  g.uniformMatrix4fv(SH.loc.uView, false, Cam.view);
+  g.enable(g.DEPTH_TEST);
+  g.depthMask(true);
+}
 
-  /* 部署区 */
-  if (World.phase === 'DEPLOY' && !World.deployDone) {
-    g.save();
-    g.setLineDash([8, 6]); g.lineWidth = 2;
-    for (const z of DEPLOY_ZONES) {
-      g.strokeStyle = 'rgba(180,220,255,.55)'; g.fillStyle = 'rgba(120,190,255,.10)';
-      g.beginPath(); g.roundRect(z.x1, z.y1, z.x2 - z.x1, z.y2 - z.y1, 10); g.fill(); g.stroke();
-      g.fillStyle = 'rgba(200,230,255,.9)'; g.font = '12px "Microsoft YaHei",sans-serif';
-      g.fillText(z.name, z.x1 + 10, z.y1 + 18);
+/* ------------------------------------------------------------ 实体 */
+function soldierTint(u) {
+  if (u.team === 'ally') return u.isPlayer ? [1.02, 1.06, 0.98] : [0.80, 0.92, 0.74];
+  if (u.officer) return [1.10, 0.80, 0.66];
+  return [1.00, 0.74, 0.60];
+}
+function vehTint(v) {
+  if (v.team === 'ally') return [0.82, 0.94, 0.78];
+  if (v.destroyed) return [0.34, 0.30, 0.27];
+  if (v.type === 'tank') return [0.94, 0.86, 0.78];
+  return [0.92, 0.82, 0.70];
+}
+function drawAllEntities() {
+  const g = GL;
+  /* 载具 */
+  for (const v of World.vehicles) {
+    const mesh = MESH_VEH[v.type] || MESH_VEH.jeep;
+    const tilt = v.destroyed ? 0.34 : 0;
+    setModel(v.x, tilt * 6, v.y, -v.angle + (v.destroyed ? 0.5 : 0), 1, 1, 1);
+    useMesh(mesh, null, vehTint(v), { emis: v.destroyed && v.fireT > 0 ? 0.5 : 0 });
+    drawCur();
+    if (v.destroyed) {   /* 残骸火球 */
+      const k = 1 + Math.sin(World.t * 7) * 0.14;
+      setModel(v.x, 26 * k, v.y, World.t, 1, 1, 1);
+      useMesh(MESH_GLOW, null, [1.0, 0.42, 0.10], { unlit: true, alpha: 0.55 });
+      drawCur();
     }
-    g.restore();
   }
-
-  /* 弹坑 / 血迹 */
-  for (const d of World.decals) {
-    g.fillStyle = d.c; g.beginPath(); g.arc(d.x, d.y, d.r, 0, 6.29); g.fill();
+  /* 步兵 */
+  for (const u of World.units) {
+    if (u.dead) continue;
+    if (u.mount) continue;
+    /* 第一人称：相机就在玩家自己模型的头部，若照常绘制会被自己的头盔/躯干
+       内表面糊满整个屏幕（表现为「看不见天空、整屏一片深绿」）。必须跳过。 */
+    if (u.isPlayer) continue;
+    const mesh = (u.downed ? MESH_SOLDIER_DOWN : MESH_SOLDIER);
+    const s = u.downed ? 1 : 1;
+    const sway = u.moving && !u.downed ? Math.sin(World.t * 9 + u.wobble) * 0.05 : 0;
+    setModel(u.x, 0, u.y, -u.facing + sway, s, 1, 1);
+    useMesh(mesh, null, soldierTint(u), { emis: 0 });
+    drawCur();
+    /* 我方头顶识别菱形（近距离队友） */
   }
-
-  /* 点位标记 */
-  g.font = '11px "Microsoft YaHei",sans-serif';
-  for (const k in POINTS) {
-    const p = POINTS[k];
-    const isEvac = World.evac.key === k;
-    g.save();
-    g.strokeStyle = isEvac ? 'rgba(120,255,180,.85)' : 'rgba(255,255,255,.35)';
-    g.lineWidth = 1.6;
-    g.beginPath(); g.arc(p.x, p.y, isEvac ? 88 + Math.sin(World.t * 3) * 6 : 40, 0, 6.29); g.stroke();
-    if (isEvac) { g.fillStyle = 'rgba(120,255,180,.10)'; g.beginPath(); g.arc(p.x, p.y, 88, 0, 6.29); g.fill(); }
-    g.fillStyle = isEvac ? '#8dffc0' : 'rgba(255,255,255,.55)';
-    g.font = 'bold 15px "Microsoft YaHei",sans-serif';
-    g.fillText(p.short, p.x - 4, p.y - 46);
-    g.font = '10px "Microsoft YaHei",sans-serif';
-    g.fillText(p.name.slice(2) + (isEvac ? ' ▼撤离点' : ''), p.x - 26, p.y - 32);
-    g.restore();
-  }
-
-  /* 地雷 */
-  for (const m of World.mines) {
-    if (m.used) continue;
-    g.strokeStyle = m.armed ? 'rgba(255,180,60,.9)' : 'rgba(255,255,255,.35)';
-    g.lineWidth = 1.4;
-    g.beginPath(); g.arc(m.x, m.y, 9, 0, 6.29); g.stroke();
-    g.beginPath(); g.moveTo(m.x - 6, m.y); g.lineTo(m.x + 6, m.y); g.moveTo(m.x, m.y - 6); g.lineTo(m.x, m.y + 6); g.stroke();
-  }
-
   /* 密码箱 */
   if (World.box && !World.box.taken) {
-    g.save(); g.translate(World.box.x, World.box.y);
-    g.fillStyle = 'rgba(255,215,80,.95)'; g.strokeStyle = '#5a4a10'; g.lineWidth = 1.5;
-    g.beginPath(); g.rect(-7, -5, 14, 10); g.fill(); g.stroke();
-    g.fillStyle = '#5a4a10'; g.fillRect(-8, -1.5, 16, 2);
-    g.strokeStyle = 'rgba(255,215,80,.7)'; g.lineWidth = 2;
-    g.beginPath(); g.arc(0, 0, 16 + Math.sin(World.t * 4) * 3, 0, 6.29); g.stroke();
-    g.restore();
+    const bob = Math.sin(World.t * 3.2) * 3;
+    setModel(World.box.x, 12 + bob, World.box.y, World.t * 0.9, 1, 1, 1);
+    useMesh(MESH_BOX, null, [1.0, 0.86, 0.42], { emis: 0.75 });
+    drawCur();
   }
-
-  /* 掩体（动态部分：油桶等） */
-  for (const p of World.props) if (p.type === 'barrel') drawProp(g, p, false);
-
+  /* 弹丸：炮弹/火箭画成发光体，子弹交给 HUD 曳光 */
+  for (const p of World.projectiles) {
+    if (p.type === 'bullet') continue;
+    const big = p.type === 'rocket' ? 3.4 : 2.6;
+    setModel(p.x, 30, p.y, 0, big, big, big);
+    useMesh(MESH_GLOW, null, p.type === 'rocket' ? [1.0, 0.78, 0.28] : [1.0, 0.90, 0.55],
+      { unlit: true, alpha: 0.95 });
+    drawCur();
+  }
+  /* 爆炸/枪口火光 */
+  for (const f of World.fx) {
+    const k = clamp(1 - f.t / Math.max(0.001, f.life), 0, 1);
+    const big = (f.big ? 30 : 13) * (1.6 - k * 0.6);
+    const y = f.type === 'flash' ? 34 : 22;
+    setModel(f.x, y, f.y, 0, big, big, big);
+    useMesh(MESH_GLOW, null, f.big ? [1.0, 0.62, 0.22] : [1.0, 0.88, 0.52],
+      { unlit: true, alpha: 0.55 + k * 0.42 });
+    drawCur();
+  }
   /* 烟雾 */
   for (const s of World.smokes) {
-    const a = clamp(1 - s.t / s.life, 0, 1) * 0.85;
-    g.fillStyle = 'rgba(226,226,222,' + a.toFixed(2) + ')';
-    for (let i = 0; i < 5; i++) {
-      const a2 = i / 5 * 6.283 + s.t * 0.3;
-      g.beginPath(); g.arc(s.x + Math.cos(a2) * s.r * 0.42, s.y + Math.sin(a2) * s.r * 0.42, s.r * 0.62, 0, 6.29); g.fill();
+    const k = clamp(1 - s.t / Math.max(0.001, s.life), 0, 1);
+    const r = (s.r || 70) * (0.6 + (1 - k) * 0.7);
+    for (let i = 0; i < 3; i++) {
+      const a = i * 2.09 + World.t * 0.3;
+      setModel(s.x + Math.cos(a) * r * 0.3, 20 + i * 9, s.y + Math.sin(a) * r * 0.3, 0, r, r * 0.7, r);
+      useMesh(MESH_GLOW, null, [0.72, 0.74, 0.72], { unlit: true, alpha: 0.24 * k + 0.10 });
+      drawCur();
     }
   }
+}
 
-  /* 车辆 */
-  for (const v of World.vehicles) drawVehicle(g, v);
-
-  /* 步兵：先画倒地/阵亡 */
-  for (const u of World.units) if (u.dead || u.downed) drawUnit(g, u);
-  for (const u of World.units) if (!u.dead && !u.downed) drawUnit(g, u);
-
-  /* 弹丸 */
-  for (const p of World.projectiles) drawProjectile(g, p);
-
-  /* 特效 */
-  for (const f of World.fx) drawFx(g, f);
-
-  /* 坦克炮瞄准预警 */
-  for (const v of World.vehicles) {
-    if (v.aimPt && v.aimT > 0) {
-      const k = 1 - v.aimT / SHELL.warn;
-      g.save();
-      g.strokeStyle = 'rgba(255,70,50,.95)'; g.lineWidth = 2.4; g.setLineDash([7, 5]);
-      g.beginPath(); g.arc(v.aimPt.x, v.aimPt.y, SHELL.splash * (1.15 - k * 0.15), 0, 6.29); g.stroke();
-      g.fillStyle = 'rgba(255,60,40,' + (0.10 + k * 0.22).toFixed(2) + ')'; g.fill();
-      g.setLineDash([]); g.restore();
-    }
-  }
-  /* 遥控炮击落点预警 */
-  if (World.pendingShells) for (const s of World.pendingShells) {
-    g.save();
-    g.strokeStyle = 'rgba(255,120,40,.95)'; g.lineWidth = 2.2; g.setLineDash([6, 6]);
-    g.beginPath(); g.arc(s.x, s.y, 96 * (1.1 - s.t / 2.2 * 0.2), 0, 6.29); g.stroke();
-    g.setLineDash([]); g.restore();
-  }
-
-  /* 准星标记点 */
-  if (World.marker) {
-    const m = World.marker;
-    g.save(); g.translate(m.x, m.y);
-    g.strokeStyle = 'rgba(255,215,80,.95)'; g.lineWidth = 2;
-    g.beginPath(); g.arc(0, 0, 14 + Math.sin(World.t * 5) * 2, 0, 6.29); g.stroke();
-    g.beginPath(); g.moveTo(-20, 0); g.lineTo(-8, 0); g.moveTo(8, 0); g.lineTo(20, 0);
-    g.moveTo(0, -20); g.lineTo(0, -8); g.moveTo(0, 8); g.lineTo(0, 20); g.stroke();
-    g.restore();
-  }
-  /* 玩家准星 */
+/* -------------------------------------------------- 第一人称武器（视图空间） */
+let wpnRecoil = 0, wpnKick = 0, wpnSway = 0, wpnReloadT = 0, wpnAdsVis = 0;
+function drawWeaponView() {
   const p = World.player;
-  if (p && !p.dead) {
-    g.save();
-    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2;
-    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + Math.cos(p.facing) * (p.wpn.range * 0.55), p.y + Math.sin(p.facing) * (p.wpn.range * 0.55)); g.stroke();
-    g.restore();
+  if (!p || p.dead || p.downed) return;
+  const g = GL;
+  const ads = Cam.ads;
+  /* 视图空间摆放：默认靠右下，ADS 时移到屏幕中央偏下 */
+  const bx = 17 * (1 - ads * 0.94);
+  const by = -16 - 3 * (1 - ads) + wpnKick * 1.6 - Cam.bobY * 0.45;
+  const bz = 30 - ads * 7 + wpnKick * 3.2;
+  const gy = Math.sin(Cam.walkPhase) * 1.4 * (1 - ads) + wpnSway;
+  g.disable(g.DEPTH_TEST);
+  g.depthMask(false);
+  setModelCamSpace(bx + Cam.bob * 0.25, by + gy, bz, -0.035 * (1 - ads), 1);
+  useMesh(MESH_WPN, null, [0.94, 0.97, 0.94], { emis: 0.12 });
+  drawCur();
+  /* 枪口火焰 */
+  if (p.fireCd > p.wpn.rof - 0.05) {
+    const k = 1 + RNG() * 0.45;
+    setModelCamSpace(bx * 0.5 + 30 + 22 * (1 - ads), by + gy, bz + 4, 0, 11 * k);
+    useMesh(MESH_GLOW, null, [1.0, 0.90, 0.58], { unlit: true, alpha: 0.9 });
+    drawCur();
   }
-
-  g.restore();
-
-  /* 天气叠加 */
-  if (World.weather === 'night') {
-    const px = (p ? p.x : CFG.W / 2) - World.cam.x, py = (p ? p.y : CFG.H / 2) - World.cam.y;
-    const rg = g.createRadialGradient(px, py, 40, px, py, Math.max(view.w, view.h) * 0.55);
-    rg.addColorStop(0, 'rgba(6,10,24,0.35)'); rg.addColorStop(1, 'rgba(4,8,20,0.86)');
-    g.fillStyle = rg; g.fillRect(0, 0, view.w, view.h);
-  } else if (World.weather === 'rain') {
-    g.fillStyle = 'rgba(40,60,80,.16)'; g.fillRect(0, 0, view.w, view.h);
-    g.strokeStyle = 'rgba(200,220,240,.30)'; g.lineWidth = 1;
-    for (let i = 0; i < 130; i++) {
-      const x = (i * 137 + World.t * 320) % view.w, y = (i * 71 + World.t * 900) % view.h;
-      g.beginPath(); g.moveTo(x, y); g.lineTo(x - 3, y + 13); g.stroke();
-    }
-  }
-}
-function drawBridge(g) {
-  const y1 = CFG.bridgeY1, y2 = CFG.bridgeY2;
-  if (World.bridgeAlive) {
-    g.fillStyle = '#a89778'; g.fillRect(CFG.riverX1 - 12, y1, CFG.riverX2 - CFG.riverX1 + 24, y2 - y1);
-    g.strokeStyle = 'rgba(90,80,60,.75)'; g.lineWidth = 2;
-    for (let x = CFG.riverX1 - 12; x < CFG.riverX2 + 12; x += 14) { g.beginPath(); g.moveTo(x, y1); g.lineTo(x, y2); g.stroke(); }
-    g.strokeStyle = 'rgba(70,60,44,.9)'; g.lineWidth = 3; g.strokeRect(CFG.riverX1 - 12, y1, CFG.riverX2 - CFG.riverX1 + 24, y2 - y1);
-  } else {
-    g.fillStyle = 'rgba(60,54,44,.9)';
-    g.fillRect(CFG.riverX1 - 12, y1, 26, y2 - y1);
-    g.fillRect(CFG.riverX2 - 14, y1, 26, y2 - y1);
-    g.fillStyle = 'rgba(120,110,92,.75)';
-    for (let i = 0; i < 7; i++) g.fillRect(CFG.riverX1 + 4 + i * 8, y1 + 20 + Math.sin(i * 2 + World.t) * 6, 7, 12);
-  }
-}
-function drawVehicle(g, v) {
-  g.save(); g.translate(v.x, v.y);
-  if (v.destroyed) {
-    g.rotate(v.angle);
-    g.fillStyle = '#3b352c'; g.beginPath(); g.roundRect(-v.len / 2, -v.wid / 2, v.len, v.wid, 4); g.fill();
-    g.strokeStyle = 'rgba(20,16,12,.9)'; g.lineWidth = 2; g.stroke();
-    g.restore(); return;
-  }
-  g.rotate(v.angle);
-  g.fillStyle = 'rgba(20,18,14,.35)'; g.beginPath(); g.roundRect(-v.len / 2 + 3, -v.wid / 2 + 4, v.len, v.wid, 4); g.fill();
-  const col = v.type === 'tank' ? '#5a6348' : v.type === 'apc' ? '#5f6350' : v.type === 'truck' ? '#6b6248' : '#66603f';
-  g.fillStyle = v.hitFlash > 0 ? '#c07050' : col;
-  g.beginPath(); g.roundRect(-v.len / 2, -v.wid / 2, v.len, v.wid, 4); g.fill();
-  g.strokeStyle = 'rgba(28,30,20,.9)'; g.lineWidth = 1.6; g.stroke();
-  /* 车轮 */
-  g.fillStyle = 'rgba(24,22,18,.85)';
-  if (v.type === 'tank') {
-    g.fillRect(-v.len / 2 + 2, -v.wid / 2 - 4, v.len - 4, 5);
-    g.fillRect(-v.len / 2 + 2, v.wid / 2 - 1, v.len - 4, 5);
-  } else {
-    for (const sx of [-0.30, 0.22]) {
-      g.fillRect(v.len * sx, -v.wid / 2 - 3, v.len * 0.16, 4);
-      g.fillRect(v.len * sx, v.wid / 2 - 1, v.len * 0.16, 4);
-    }
-  }
-  /* 炮塔 */
-  if (v.type === 'tank') {
-    g.save(); g.rotate(v.turret - v.angle);
-    g.fillStyle = '#4d5540'; g.beginPath(); g.arc(0, 0, v.wid * 0.34, 0, 6.29); g.fill();
-    g.strokeStyle = 'rgba(24,26,18,.9)'; g.stroke();
-    g.fillStyle = '#3d4433'; g.fillRect(0, -2.6, v.len * 0.62, 5.2);
-    g.restore();
-  } else if (v.type === 'apc') {
-    g.save(); g.rotate(v.turret - v.angle);
-    g.fillStyle = '#4d5540'; g.beginPath(); g.arc(-6, 0, 7, 0, 6.29); g.fill();
-    g.fillStyle = '#3d4433'; g.fillRect(0, -1.8, 22, 3.6);
-    g.restore();
-  }
-  g.restore();
-  /* 血条 */
-  if (v.hp < v.maxHp) {
-    const w = v.len, x = v.x - w / 2, y = v.y - v.wid / 2 - 12;
-    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x, y, w, 4);
-    g.fillStyle = v.hp / v.maxHp > 0.5 ? '#e0b040' : '#e05050';
-    g.fillRect(x, y, w * clamp(v.hp / v.maxHp, 0, 1), 4);
-  }
-  if (v.type === 'tank' && !v.destroyed) {
-    g.font = 'bold 10px "Microsoft YaHei",sans-serif'; g.fillStyle = '#ffd166';
-    g.fillText('坦克', v.x - 12, v.y - v.wid / 2 - 16);
-  }
-}
-function drawUnit(g, u) {
-  const ally = u.team === 'ally';
-  g.save(); g.translate(u.x, u.y);
-  if (u.dead) {
-    g.rotate(u.facing);
-    g.fillStyle = 'rgba(40,34,30,.55)'; g.beginPath(); g.ellipse(0, 0, 8, 5, 0, 0, 6.29); g.fill();
-    g.restore(); return;
-  }
-  if (u.downed) {
-    g.fillStyle = 'rgba(255,60,60,.9)'; g.beginPath(); g.arc(0, 0, 5.6, 0, 6.29); g.fill();
-    g.strokeStyle = 'rgba(255,60,60,.7)'; g.lineWidth = 1.5;
-    g.beginPath(); g.arc(0, 0, 9 + Math.sin(World.t * 6) * 2, 0, 6.29); g.stroke();
-    g.fillStyle = '#ffdede'; g.font = '10px "Microsoft YaHei",sans-serif'; g.fillText('伤员', -10, -13);
-    g.restore(); return;
-  }
-  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.arc(1.5, 2, 5.6, 0, 6.29); g.fill();
-  const col = u.hitFlash > 0 ? '#ffffff' : ally ? (u.isPlayer ? '#79e0ff' : '#4f9bd6') : (u.officer ? '#ff9a3c' : '#c8503c');
-  g.fillStyle = col; g.beginPath(); g.arc(0, 0, 5.4, 0, 6.29); g.fill();
-  g.strokeStyle = ally ? 'rgba(10,30,40,.9)' : 'rgba(40,10,10,.9)'; g.lineWidth = 1.4; g.stroke();
-  /* 朝向 */
-  g.strokeStyle = ally ? 'rgba(220,240,255,.95)' : 'rgba(255,210,190,.95)'; g.lineWidth = 1.8;
-  g.beginPath(); g.moveTo(Math.cos(u.facing) * 4, Math.sin(u.facing) * 4);
-  g.lineTo(Math.cos(u.facing) * 11, Math.sin(u.facing) * 11); g.stroke();
-  /* 角色标记 */
-  g.font = 'bold 8px "Microsoft YaHei",sans-serif'; g.textAlign = 'center';
-  if (ally) {
-    if (u.role === '医疗兵') { g.fillStyle = '#fff'; g.fillRect(-1, -8.5, 2, 6); g.fillRect(-3, -6.5, 6, 2); }
-    else if (u.role === '反坦克手') { g.fillStyle = '#ffd166'; g.fillRect(-4, -8, 8, 2.4); }
-    else if (u.role === '狙击手') { g.fillStyle = '#c9e2ff'; g.beginPath(); g.arc(0, -8, 2, 0, 6.29); g.fill(); }
-    else if (u.role === '爆破手') { g.fillStyle = '#ffa94d'; g.fillRect(-2, -10, 4, 4); }
-  } else if (u.officer) { g.fillStyle = '#ffd166'; g.fillText('★', 0, -9); }
-  g.textAlign = 'left';
-  g.restore();
-  /* 名称 / 状态 */
-  if (ally || u.officer) {
-    g.font = '10px "Microsoft YaHei",sans-serif';
-    g.fillStyle = ally ? 'rgba(214,236,255,.95)' : 'rgba(255,190,120,.95)';
-    g.fillText(ally ? u.name : (u.officer ? '军官' : ''), u.x + 8, u.y - 6);
-  }
-  if (u.carryBox) { g.fillStyle = '#ffd166'; g.fillRect(u.x - 3, u.y - 14, 6, 5); }
-  /* 血条 */
-  if (ally && u.hp < u.maxHp) {
-    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(u.x - 9, u.y + 8, 18, 3);
-    g.fillStyle = u.hp > 50 ? '#63d471' : u.hp > 25 ? '#e0b040' : '#ff5a5a';
-    g.fillRect(u.x - 9, u.y + 8, 18 * clamp(u.hp / u.maxHp, 0, 1), 3);
-  }
-  /* 压制指示 */
-  if (ally && u.suppression > 55) {
-    g.strokeStyle = 'rgba(255,90,60,.85)'; g.lineWidth = 1.6;
-    g.beginPath(); g.arc(u.x, u.y, 10, 0, 6.29); g.stroke();
-  }
-  if (u === World.rangedSel) {
-    g.strokeStyle = 'rgba(255,215,80,.95)'; g.lineWidth = 1.6;
-    g.beginPath(); g.arc(u.x, u.y, 12, 0, 6.29); g.stroke();
-  }
-}
-function drawProjectile(g, p) {
-  if (p.type === 'grenade' || p.type === 'smokeG') {
-    g.fillStyle = p.color; g.beginPath(); g.arc(p.x, p.y, 3.2, 0, 6.29); g.fill();
-    return;
-  }
-  g.strokeStyle = p.color; g.lineWidth = p.type === 'bullet' ? 1.3 : 2.4;
-  g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 0.016, p.y - p.vy * 0.016); g.stroke();
-  if (p.type === 'rocket' || p.type === 'shell') {
-    g.strokeStyle = 'rgba(255,180,80,.35)'; g.lineWidth = 5;
-    g.beginPath(); g.moveTo(p.x - p.vx * 0.05, p.y - p.vy * 0.05); g.lineTo(p.x, p.y); g.stroke();
-  }
-}
-function drawFx(g, f) {
-  const k = clamp(f.t / f.life, 0, 1);
-  if (f.type === 'flash') {
-    g.save(); g.translate(f.x, f.y); g.rotate(f.a || 0);
-    g.fillStyle = 'rgba(255,235,160,' + (1 - k) * 0.9 + ')';
-    g.beginPath(); g.moveTo(0, -2.5); g.lineTo((f.big ? 26 : 13) * (1 - k * 0.4), 0); g.lineTo(0, 2.5); g.closePath(); g.fill();
-    g.restore();
-  } else if (f.type === 'boom') {
-    const r = f.r * (0.35 + k * 0.75);
-    const a = 1 - k;
-    const rg = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
-    rg.addColorStop(0, 'rgba(255,255,210,' + (a * 0.95) + ')');
-    rg.addColorStop(0.35, 'rgba(255,170,60,' + (a * 0.85) + ')');
-    rg.addColorStop(1, 'rgba(90,60,30,0)');
-    g.fillStyle = rg; g.beginPath(); g.arc(f.x, f.y, r, 0, 6.29); g.fill();
-  } else if (f.type === 'fire') {
-    g.fillStyle = 'rgba(255,' + Math.round(140 - k * 80) + ',40,' + (1 - k) * 0.75 + ')';
-    g.beginPath(); g.arc(f.x, f.y - k * 14, f.r * (1 - k * 0.5), 0, 6.29); g.fill();
-  } else if (f.type === 'spark') {
-    g.fillStyle = f.blood ? 'rgba(200,60,50,' + (1 - k) * 0.9 + ')' : 'rgba(255,230,150,' + (1 - k) * 0.9 + ')';
-    for (let i = 0; i < 4; i++) {
-      const a = i * 1.7 + f.x * 0.1;
-      g.beginPath(); g.arc(f.x + Math.cos(a) * k * 9, f.y + Math.sin(a) * k * 9, 1.6 * (1 - k), 0, 6.29); g.fill();
-    }
-  }
+  g.enable(g.DEPTH_TEST);
+  g.depthMask(true);
 }
 
-/* --------------------------------------------------------------- 小地图 */
-function drawMinimap() {
-  const g = MCTX;
-  const W = MM.width, H = MM.height;
-  const sx = W / CFG.W, sy = H / CFG.H;
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  g.clearRect(0, 0, W, H);
-  g.fillStyle = '#5d6a45'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#5d86a8'; g.fillRect(CFG.riverX1 * sx, 0, (CFG.riverX2 - CFG.riverX1) * sx, H);
-  g.strokeStyle = '#b3a985'; g.lineWidth = Math.max(4, (CFG.roadBot - CFG.roadTop) * sy);
-  g.beginPath(); g.moveTo(ROAD_PATH[0][0] * sx, ROAD_PATH[0][1] * sy);
-  for (let i = 1; i < ROAD_PATH.length; i++) g.lineTo(ROAD_PATH[i][0] * sx, ROAD_PATH[i][1] * sy);
-  g.stroke();
-  /* 视野框 */
-  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.5;
-  g.strokeRect(World.cam.x * sx, World.cam.y * sy, view.w * sx, view.h * sy);
-  /* 撤离点 */
-  g.strokeStyle = '#8dffc0'; g.lineWidth = 2;
-  g.beginPath(); g.arc(World.evac.x * sx, World.evac.y * sy, 7, 0, 6.29); g.stroke();
-  /* 点位 */
-  g.font = 'bold 11px "Microsoft YaHei",sans-serif';
-  for (const k in POINTS) {
-    const p = POINTS[k];
-    g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(p.x * sx, p.y * sy, 2.4, 0, 6.29); g.fill();
-    g.fillStyle = 'rgba(240,240,230,.85)'; g.fillText(k, p.x * sx + 4, p.y * sy - 3);
+/* ------------------------------------------------------------- 主渲染 */
+let lastDrawT = performance.now();
+function draw() {
+  const g = GL;
+  if (!g || !SH.prog) return;
+  const now = performance.now();
+  lastDrawT = now;
+  const f = fogColor();
+  g.viewport(0, 0, view.bw, view.bh);
+  g.clearColor(f[0], f[1], f[2], 1);
+  g.clear(g.COLOR_BUFFER_BIT | g.DEPTH_BUFFER_BIT);
+  g.useProgram(SH.prog);
+  g.uniformMatrix4fv(SH.loc.uProj, false, Cam.proj);
+  g.uniformMatrix4fv(SH.loc.uView, false, Cam.view);
+  g.uniform3f(SH.loc.uFog, f[0], f[1], f[2]);
+  g.uniform3f(SH.loc.uCam, Cam.x, Cam.y, Cam.z);
+  g.uniform1f(SH.loc.uAlpha, 1);
+  g.uniform1f(SH.loc.uEmis, 0);
+  g.uniform1f(SH.loc.uUnlit, 0);
+  const far = World.weather === 'night' ? 2600 : World.weather === 'rain' ? 3400 : 4800;
+  g.uniform1f(SH.loc.uFogNear, far * 0.14);
+  g.uniform1f(SH.loc.uFogFar, far);
+
+  _drawCalls = 0;
+  drawSky();
+
+  /* 静态世界 */
+  setModel(0, 0, 0, 0, 1, 1, 1);
+  useMesh(SCENE.ground, TEX.grass, null); drawCur();
+  useMesh(SCENE.water, TEX.water, null, { emis: 0.25 }); drawCur();
+  useMesh(SCENE.road, TEX.road, null); drawCur();
+  if (World.bridgeAlive) { useMesh(SCENE.bridge, null, null); drawCur(); }
+  useMesh(SCENE.props, null, null); drawCur();
+
+  /* 弹坑/血迹 */
+  if (World.decals.length) {
+    for (const d of World.decals) {
+      setModel(d.x, 0.9, d.y, 0, d.r / 10, 1, d.r / 10);
+      useMesh(MESH_DISC, null, d.c && d.c.indexOf('a') > 0 ? [0.30, 0.10, 0.08] : [0.18, 0.16, 0.14],
+        { unlit: true, alpha: 0.55 });
+      drawCur();
+    }
   }
-  /* 地雷 / 密码箱 */
-  for (const m of World.mines) { if (!m.used) { g.fillStyle = m.armed ? '#ffb400' : '#888'; g.beginPath(); g.arc(m.x * sx, m.y * sy, 2.5, 0, 6.29); g.fill(); } }
-  if (World.box && !World.box.taken) { g.fillStyle = '#ffd166'; g.beginPath(); g.arc(World.box.x * sx, World.box.y * sy, 3.4, 0, 6.29); g.fill(); }
-  /* 车辆 */
-  for (const v of World.vehicles) {
-    g.fillStyle = v.destroyed ? '#4a4640' : v.type === 'tank' ? '#e8b84b' : '#d06a4a';
-    g.beginPath(); g.arc(v.x * sx, v.y * sy, v.type === 'tank' ? 4.4 : 3.2, 0, 6.29); g.fill();
-  }
-  /* 敌人 */
-  g.fillStyle = '#ff5b4a';
-  for (const u of World.units) if (u.team === 'enemy' && !u.dead && !u.mount) { g.beginPath(); g.arc(u.x * sx, u.y * sy, 2, 0, 6.29); g.fill(); }
-  /* 我方 */
-  for (const u of World.units) {
-    if (u.team !== 'ally' || u.dead) continue;
-    g.fillStyle = u.downed ? '#ff9a9a' : u.isPlayer ? '#79e0ff' : '#5fa8e0';
-    g.beginPath(); g.arc(u.x * sx, u.y * sy, u.isPlayer ? 3.2 : 2.6, 0, 6.29); g.fill();
-  }
-  /* 标记 */
-  if (World.marker) {
-    g.strokeStyle = '#ffd166'; g.lineWidth = 2;
-    g.beginPath(); g.arc(World.marker.x * sx, World.marker.y * sy, 5, 0, 6.29); g.stroke();
-  }
-  /* 炮弹预警 */
-  if (World.pendingShells) for (const s of World.pendingShells) { g.strokeStyle = '#ff7a30'; g.lineWidth = 1.5; g.beginPath(); g.arc(s.x * sx, s.y * sy, 6, 0, 6.29); g.stroke(); }
+  drawAllEntities();
+  drawWeaponView();
+
+  drawHUD();
+  drawMinimap();
 }
 
 /* =========================================================================
-   十、HUD
+   9.9 HUD（2D 覆盖层）
    ========================================================================= */
+const _sp = { x: 0, y: 0, w: 0, behind: false };
+function toScreen(x, y, z) { return projectPoint(Cam.vp, x, y, z, _sp); }
+
+let hitMarker = 0, lastShotT = -9, crossSpread = 0;
+
+/* 部署阶段：第一人称下没法俯视拖人，于是把整张战术图铺满屏幕（坐标线性映射回世界） */
+function drawDeployView() {
+  const g = HCTX, W = view.w, H = view.h;
+  const sx = W / CFG.W, sy = H / CFG.H;
+  const P = (x, y) => ({ x: x * sx, y: y * sy });
+  g.save();
+  g.textAlign = 'left';
+  g.fillStyle = '#222d1c'; g.fillRect(0, 0, W, H);
+  /* 公路 */
+  g.strokeStyle = '#4d4d49'; g.lineWidth = Math.max(4, (CFG.roadBot - CFG.roadTop) * sy);
+  g.lineJoin = 'round';
+  g.beginPath();
+  for (let i = 0; i < ROAD_PATH.length; i++) {
+    const q = P(ROAD_PATH[i][0], ROAD_PATH[i][1]);
+    if (i === 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y);
+  }
+  g.stroke();
+  /* 河流 + 桥 */
+  const r1 = P(CFG.riverX1, 0), r2 = P(CFG.riverX2, CFG.H);
+  g.fillStyle = 'rgba(58,96,130,.85)'; g.fillRect(r1.x, 0, r2.x - r1.x, H);
+  const ba = P(CFG.riverX1, CFG.bridgeY1), bb = P(CFG.riverX2, CFG.bridgeY2);
+  g.fillStyle = 'rgba(150,146,136,.9)'; g.fillRect(ba.x, ba.y, bb.x - ba.x, bb.y - ba.y);
+  /* 掩体/树木 */
+  for (const p of World.props) {
+    const q = P(p.x, p.y);
+    g.fillStyle = p.type === 'tree' ? 'rgba(46,68,36,.9)'
+      : p.type === 'rock' ? 'rgba(104,102,96,.9)' : 'rgba(120,90,60,.9)';
+    g.beginPath(); g.arc(q.x, q.y, Math.max(2.5, (p.r || 14) * sx * 0.9), 0, 6.29); g.fill();
+  }
+  /* 部署区 */
+  g.lineWidth = 1.5;
+  for (const z of DEPLOY_ZONES) {
+    const a = P(z.x1, z.y1), b = P(z.x2, z.y2);
+    g.fillStyle = 'rgba(111,211,255,.09)';
+    g.strokeStyle = 'rgba(111,211,255,.45)';
+    g.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    g.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    g.fillStyle = 'rgba(190,230,255,.8)'; g.font = '600 12px "Segoe UI",sans-serif';
+    g.fillText(z.name, a.x + 9, a.y + 19);
+  }
+  /* 关键点 */
+  g.textAlign = 'center';
+  for (const k in POINTS) {
+    const q = P(POINTS[k].x, POINTS[k].y);
+    g.strokeStyle = (World.evac.key === k) ? 'rgba(120,255,180,.8)' : 'rgba(255,255,255,.32)';
+    g.lineWidth = 1.5;
+    g.beginPath(); g.arc(q.x, q.y, 15, 0, 6.29); g.stroke();
+    g.fillStyle = (World.evac.key === k) ? 'rgba(150,255,200,.9)' : 'rgba(255,255,255,.7)';
+    g.font = '600 13px "Segoe UI",sans-serif';
+    g.fillText(k, q.x, q.y + 5);
+  }
+  /* 队员（可拖动） */
+  for (const u of World.units) {
+    if (u.team !== 'ally') continue;
+    const q = P(u.x, u.y);
+    const sel = (u === Input.dragUnit);
+    g.fillStyle = u.isPlayer ? 'rgba(111,211,255,.95)' : 'rgba(95,224,138,.9)';
+    g.beginPath(); g.arc(q.x, q.y, sel ? 12 : 8.5, 0, 6.29); g.fill();
+    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); }
+    g.fillStyle = 'rgba(238,246,251,.92)'; g.font = '600 11.5px "Segoe UI",sans-serif';
+    g.fillText(u.name, q.x, q.y - 15);
+  }
+  /* 顶部提示条 */
+  g.fillStyle = 'rgba(6,10,12,.78)'; g.fillRect(0, 0, W, 74);
+  g.fillStyle = 'rgba(238,246,251,.95)'; g.font = '600 16px "Segoe UI",sans-serif';
+  g.fillText('部署阶段 · 拖动队员调整站位', W / 2, 32);
+  g.font = '12.5px "Segoe UI",sans-serif'; g.fillStyle = 'rgba(143,163,176,.95)';
+  g.fillText('点击队员并拖动 · 完成后点下方「部署完成，进入潜伏」· 也可先用「一键推荐部署」', W / 2, 56);
+  g.restore();
+}
+
+function drawHUD() {
+  const g = HCTX;
+  g.clearRect(0, 0, view.w, view.h);
+  if (isDeploying()) { drawDeployView(); return; }
+  const p = World.player;
+  const cx = view.w / 2, cy = view.h / 2;
+  if (!World.started || World.over) return;
+
+  /* --- 队友/敌人标记（3D → 2D 投影） --- */
+  for (const u of World.units) {
+    if (u.dead || u.mount) continue;
+    const isAlly = u.team === 'ally';
+    if (isAlly && u.isPlayer) continue;
+    const d = dist(u.x, u.y, Cam.x, Cam.z);
+    if (d > (isAlly ? 2400 : 3200)) continue;
+    if (toScreen(u.x, 56, u.y).behind) continue;
+    const sx = _sp.x, sy = _sp.y;
+    if (sx < -80 || sx > view.w + 80 || sy < -80 || sy > view.h + 80) continue;
+    const col = isAlly ? '95,224,138' : '255,77,77';
+    const s = clamp(2400 / Math.max(160, d) * 5, 4, 11);
+    g.save();
+    g.strokeStyle = 'rgba(' + col + ',.92)'; g.lineWidth = 1.4;
+    if (isAlly) {
+      g.beginPath(); g.arc(sx, sy, s * 0.5, 0, 6.29); g.stroke();
+      g.font = '600 10px "Segoe UI",sans-serif'; g.fillStyle = 'rgba(' + col + ',.88)';
+      g.textAlign = 'center'; g.fillText(u.name, sx, sy + s + 12);
+    } else {
+      /* 敌人：菱形（使命召唤式目标标记） */
+      g.beginPath();
+      g.moveTo(sx, sy - s); g.lineTo(sx + s, sy); g.lineTo(sx, sy + s); g.lineTo(sx - s, sy);
+      g.closePath(); g.stroke();
+      g.fillStyle = 'rgba(' + col + ',.16)'; g.fill();
+      if (d < 1500) {
+        g.font = '600 9.5px "Segoe UI",sans-serif'; g.fillStyle = 'rgba(' + col + ',.75)';
+        g.textAlign = 'center'; g.fillText(Math.round(d / 20) + 'm', sx, sy + s + 12);
+      }
+    }
+    g.restore();
+  }
+  /* 撤离点 / 关键点指示 */
+  for (const k in POINTS) {
+    const pt = POINTS[k];
+    if (toScreen(pt.x, 6, pt.y).behind) continue;
+    const sx = _sp.x, sy = _sp.y;
+    if (sx < 0 || sx > view.w || sy < 0 || sy > view.h) continue;
+    const isEvac = World.evac.key === k;
+    g.save();
+    g.strokeStyle = isEvac ? 'rgba(120,255,180,.75)' : 'rgba(255,255,255,.30)';
+    g.lineWidth = 1.2;
+    const s = isEvac ? 9 + Math.sin(World.t * 3) * 2 : 6;
+    g.beginPath(); g.moveTo(sx, sy - s); g.lineTo(sx + s, sy); g.lineTo(sx, sy + s); g.lineTo(sx - s, sy);
+    g.closePath(); g.stroke();
+    g.font = '600 10px "Segoe UI",sans-serif';
+    g.fillStyle = isEvac ? 'rgba(150,255,200,.92)' : 'rgba(255,255,255,.5)';
+    g.textAlign = 'center';
+    g.fillText(k + (isEvac ? ' 撤离' : ''), sx, sy - s - 4);
+    g.restore();
+  }
+  /* 准星标记点 */
+  if (World.marker && World.t - World.marker.t < 25) {
+    if (!toScreen(World.marker.x, 4, World.marker.y).behind) {
+      const sx = _sp.x, sy = _sp.y;
+      g.save(); g.strokeStyle = 'rgba(111,211,255,.85)'; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(sx, sy, 11, 0, 6.29); g.stroke();
+      g.beginPath(); g.moveTo(sx - 16, sy); g.lineTo(sx - 5, sy);
+      g.moveTo(sx + 5, sy); g.lineTo(sx + 16, sy); g.stroke();
+      g.restore();
+    }
+  }
+
+  /* --- 曳光弹 --- */
+  g.save();
+  g.lineCap = 'round';
+  for (const pr of World.projectiles) {
+    if (pr.type !== 'bullet') continue;
+    const len = 46;
+    const a = Math.atan2(pr.vy, pr.vx);
+    const x1 = pr.x, y1 = pr.y, x2 = pr.x - Math.cos(a) * len, y2 = pr.y - Math.sin(a) * len;
+    if (toScreen(x1, 30, y1).behind) continue;
+    const ax = _sp.x, ay = _sp.y;
+    if (toScreen(x2, 30, y2).behind) continue;
+    const bx = _sp.x, by = _sp.y;
+    const ally = pr.team === 'ally';
+    g.strokeStyle = ally ? 'rgba(190,235,255,.55)' : 'rgba(255,190,150,.55)';
+    g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
+  }
+  g.restore();
+
+  /* --- 准星 --- */
+  if (!p || p.dead) return;
+  const moving = Cam.spd > 20 ? 1 : 0;
+  const spNow = 7 + crossSpread * 34 + moving * 4 + (p.reloadT > 0 ? 16 : 0);
+  crossSpread += (0 - crossSpread) * 0.12;
+  const gap = spNow * (1 - Cam.ads * 0.62) + 3;
+  const len = 7 * (1 - Cam.ads * 0.3);
+  g.save();
+  g.strokeStyle = 'rgba(232,244,250,.88)';
+  g.lineWidth = 1.6;
+  g.beginPath();
+  g.moveTo(cx - gap - len, cy); g.lineTo(cx - gap, cy);
+  g.moveTo(cx + gap, cy); g.lineTo(cx + gap + len, cy);
+  g.moveTo(cx, cy - gap - len); g.lineTo(cx, cy - gap);
+  g.moveTo(cx, cy + gap); g.lineTo(cx, cy + gap + len);
+  g.stroke();
+  g.fillStyle = 'rgba(232,244,250,.55)';
+  g.fillRect(cx - 1, cy - 1, 2, 2);
+  /* 命中标记 */
+  if (hitMarker > 0) {
+    g.strokeStyle = 'rgba(255,255,255,' + clamp(hitMarker, 0, 1) + ')';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(cx - 9, cy - 9); g.lineTo(cx - 4, cy - 4);
+    g.moveTo(cx + 9, cy - 9); g.lineTo(cx + 4, cy - 4);
+    g.moveTo(cx - 9, cy + 9); g.lineTo(cx - 4, cy + 4);
+    g.moveTo(cx + 9, cy + 9); g.lineTo(cx + 4, cy + 4);
+    g.stroke();
+  }
+  g.restore();
+
+  /* --- 受伤边缘 + 低血量脉冲 --- */
+  const hp = clamp((p.hp || 100) / (p.maxHp || 100), 0, 1);
+  const hurtEl = document.getElementById('hurt');
+  let want = 0;
+  if (p.hitFlash > 0) want = Math.max(want, 0.75);
+  if (hp < 0.62) {
+    const pulse = 0.35 + Math.sin(World.t * (3.4 + (1 - hp) * 4)) * 0.16;
+    want = Math.max(want, (1 - hp / 0.62) * pulse + 0.14);
+  }
+  if (p.dead) want = 0.92;
+  const cur = parseFloat(hurtEl.dataset.v || '0');
+  hurtEl.dataset.v = want;
+  hurtEl.style.opacity = want.toFixed(3);
+}
+
+/* ------------------------------------------------------------- 雷达 */
+function drawMinimap() {
+  const g = MCTX;
+  const W = MM.width, H = MM.height;
+  const cx = W / 2, cy = H / 2;
+  const R = Math.min(cx, cy) - 14;
+  const scale = R / 1500;      // 半径 1500 世界单位 ≈ 75 m
+  g.clearRect(0, 0, W, H);
+  g.save();
+  g.beginPath(); g.arc(cx, cy, R, 0, 6.29); g.clip();
+  g.fillStyle = 'rgba(6,14,18,.80)'; g.fillRect(0, 0, W, H);
+
+  const p = World.player;
+  const px = p ? p.x : (POINTS.A.x), py = p ? p.y : (POINTS.A.y);
+  const yaw = Cam.yaw;
+  const rot = (x, y) => {
+    /* 以玩家为原点、视角朝上 */
+    const dx = x - px, dy = y - py;
+    const c = Math.cos(-yaw - Math.PI / 2), s = Math.sin(-yaw - Math.PI / 2);
+    return { x: cx + (dx * c - dy * s) * scale, y: cy + (dx * s + dy * c) * scale };
+  };
+  /* 公路 */
+  g.strokeStyle = 'rgba(150,150,138,.34)'; g.lineWidth = (CFG.roadBot - CFG.roadTop) * scale;
+  g.beginPath();
+  for (let i = 0; i < CONVOY_WAY.length; i++) {
+    const q = rot(CONVOY_WAY[i].x, CONVOY_WAY[i].y);
+    if (i === 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y);
+  }
+  g.stroke();
+  /* 河流 */
+  g.fillStyle = 'rgba(70,120,160,.42)';
+  (function () {
+    const a = rot(CFG.riverX1, 0), b = rot(CFG.riverX2, 0),
+      c = rot(CFG.riverX2, CFG.H), d = rot(CFG.riverX1, CFG.H);
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(c.x, c.y); g.lineTo(d.x, d.y);
+    g.closePath(); g.fill();
+  })();
+  /* 关键点 */
+  for (const k in POINTS) {
+    const q = rot(POINTS[k].x, POINTS[k].y);
+    g.strokeStyle = (World.evac.key === k) ? 'rgba(120,255,180,.85)' : 'rgba(255,255,255,.30)';
+    g.lineWidth = 2;
+    g.beginPath(); g.arc(q.x, q.y, 9, 0, 6.29); g.stroke();
+    g.fillStyle = (World.evac.key === k) ? 'rgba(150,255,200,.9)' : 'rgba(255,255,255,.45)';
+    g.font = '600 11px "Segoe UI",sans-serif'; g.textAlign = 'center';
+    g.fillText(k, q.x, q.y + 4);
+  }
+  /* 车辆 */
+  for (const v of World.vehicles) {
+    const q = rot(v.x, v.y);
+    g.fillStyle = v.destroyed ? 'rgba(120,120,120,.5)' : (v.team === 'ally' ? 'rgba(95,224,138,.95)' : 'rgba(255,120,90,.95)');
+    g.save(); g.translate(q.x, q.y); g.rotate(-v.angle - yaw);
+    g.fillRect(-4, -3, 8, 6); g.restore();
+  }
+  /* 士兵 */
+  for (const u of World.units) {
+    if (u.dead || u.mount) continue;
+    if (u.team === 'ally' && u.isPlayer) continue;
+    const q = rot(u.x, u.y);
+    const ally = u.team === 'ally';
+    g.fillStyle = ally ? 'rgba(95,224,138,.92)' : 'rgba(255,77,77,.92)';
+    g.beginPath();
+    if (ally) g.arc(q.x, q.y, 3.4, 0, 6.29);
+    else { g.moveTo(q.x, q.y - 4.4); g.lineTo(q.x + 3.6, q.y + 3.2); g.lineTo(q.x - 3.6, q.y + 3.2); g.closePath(); }
+    g.fill();
+  }
+  /* 密码箱 */
+  if (World.box && !World.box.taken) {
+    const q = rot(World.box.x, World.box.y);
+    g.fillStyle = 'rgba(255,200,60,.95)';
+    g.fillRect(q.x - 3.5, q.y - 3.5, 7, 7);
+  }
+  /* 视野锥 */
+  g.fillStyle = 'rgba(111,211,255,.10)';
+  g.beginPath(); g.moveTo(cx, cy);
+  const half = Cam.fov * (view.w / Math.max(1, view.h)) / 2 * 0.9;
+  g.arc(cx, cy, R * 0.82, -Math.PI / 2 - half, -Math.PI / 2 + half);
+  g.closePath(); g.fill();
+  g.restore();
+
+  /* 玩家 */
+  g.fillStyle = 'rgba(111,211,255,.98)';
+  g.beginPath(); g.moveTo(cx, cy - 7); g.lineTo(cx + 5, cy + 6); g.lineTo(cx, cy + 3); g.lineTo(cx - 5, cy + 6);
+  g.closePath(); g.fill();
+  /* 外圈 + 刻度 */
+  g.strokeStyle = 'rgba(150,190,215,.42)'; g.lineWidth = 2;
+  g.beginPath(); g.arc(cx, cy, R, 0, 6.29); g.stroke();
+  g.strokeStyle = 'rgba(150,190,215,.20)'; g.lineWidth = 1;
+  g.beginPath(); g.arc(cx, cy, R * 0.5, 0, 6.29); g.stroke();
+  g.beginPath(); g.moveTo(cx, cy - R); g.lineTo(cx, cy - R + 8); g.stroke();
+}
+
+
 const $ = id => document.getElementById(id);
 const ACTION_BY_ID = {}; ACTIONS.forEach(a => ACTION_BY_ID[a.id] = a);
 
@@ -3216,6 +4034,47 @@ function updateHUD(dt) {
     refreshPanel();
   });
   updateSubTtl(dt);
+  /* 武器 / 弹药（右下角） */
+  const pl = World.player;
+  if (pl) {
+    const rockTxt = (pl.weaponKey === 'at' && pl.rockets > 0) ? ' · 火箭弹 ' + pl.rockets : '';
+    $('weaponName').textContent = pl.wpn.name + rockTxt;
+    const mag = Math.max(0, pl.magAmmo);
+    const magEl = $('magAmmo');
+    magEl.textContent = mag;
+    magEl.className = (mag <= pl.wpn.mag * 0.25) ? 'low' : '';
+    $('reserveAmmo').textContent = '/' + Math.max(0, pl.ammo);
+    $('reloadHint').textContent = pl.dead ? '阵亡'
+      : pl.downed ? '倒地 — 等待救援'
+        : pl.reloadT > 0 ? '装填中…' : (mag <= 0 ? '按 R 换弹' : '');
+  }
+  updateKillFeed();
+}
+/* 击杀播报：由逻辑层的统计计数变化驱动，不侵入战斗代码 */
+let _kf = { e: 0, apc: 0, tank: false, off: false };
+function updateKillFeed() {
+  const s = World.stats;
+  const el = $('killfeed');
+  if (!el) return;
+  if (s.enemyDead > _kf.e) { const n = s.enemyDead - _kf.e; _kf.e = s.enemyDead; pushKf('击毙敌方步兵 ×' + n, ''); }
+  if (s.apcKilled > _kf.apc) { _kf.apc = s.apcKilled; pushKf('摧毁装甲车', 'dim'); }
+  if (s.tankKilled && !_kf.tank) { _kf.tank = true; pushKf('<b>坦克已摧毁</b>', ''); }
+  if (s.officerKilled && !_kf.off) { _kf.off = true; pushKf('击毙敌军指挥官', ''); }
+  if (s.boxTaken && !_kf.box) { _kf.box = true; pushKf('<b>密码箱已到手</b>', ''); }
+}
+function pushKf(html, cls) {
+  const el = $('killfeed');
+  if (!el) return;
+  const d = document.createElement('div');
+  d.className = 'kf ' + (cls || '');
+  d.innerHTML = html;
+  el.appendChild(d);
+  while (el.children.length > 6) el.removeChild(el.firstChild);
+  setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 4600);
+}
+function resetKillFeed() {
+  _kf = { e: 0, apc: 0, tank: false, off: false, box: false };
+  const el = $('killfeed'); if (el) el.innerHTML = '';
 }
 function updateSubTtl(dt) {
   let changed = false;
@@ -3397,10 +4256,37 @@ function startVoice() {
 function stopVoice() { if (Mic.recog) { try { Mic.recog.stop(); } catch (e) { } } }
 
 /* ------------------------------------------------------------ 输入 */
-const Input = { key: {}, mouse: { x: 0, y: 0 }, mouseWorld: null, mouseDown: false, dragUnit: null, rightDown: false };
+const Input = {
+  key: {}, mouse: { x: 0, y: 0 }, mouseWorld: null, mouseDown: false,
+  dragUnit: null, rightDown: false, fpsAim: true, ads: false,
+};
+function isTyping() {
+  const a = document.activeElement;
+  return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA');
+}
+function isDeploying() { return World.started && !World.deployDone && World.phase === 'DEPLOY'; }
+/* 部署阶段用俯视地图铺满屏幕，鼠标位置直接线性映射回世界坐标 */
+function deployWorldPos(e) {
+  const r = CV.getBoundingClientRect();
+  const mx = clamp((e.clientX - r.left) / Math.max(1, r.width), 0, 1);
+  const my = clamp((e.clientY - r.top) / Math.max(1, r.height), 0, 1);
+  return { x: mx * CFG.W, y: my * CFG.H, sx: mx * view.w, sy: my * view.h };
+}
+function pickUnitAtDeploy(e) {
+  const w = deployWorldPos(e);
+  let best = null, bd = 46 * 46;
+  for (const u of World.units) {
+    if (u.team !== 'ally' || u.dead) continue;
+    const d = dist2(w.x, w.y, u.x, u.y);
+    if (d < bd) { bd = d; best = u; }
+  }
+  return best;
+}
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   Input.key[k] = true;
+  if (k === 'tab') e.preventDefault();
+  if (isTyping() && k !== 'escape') return;      // 在输入框里打字时不触发游戏快捷键
   if (k === ' ' || k === 'spacebar') { e.preventDefault(); if (World.started && !World.over) { World.paused = !World.paused; toast(World.paused ? '已暂停' : '继续'); } }
   if (k === 'v') { e.preventDefault(); if (!Mic.listening) startVoice(); }
   if (k === 'q') { e.preventDefault(); openPanel(); }
@@ -3408,9 +4294,11 @@ window.addEventListener('keydown', e => {
   if (k === 'f') { e.preventDefault(); if (!World.triggered) { triggerAmbush('mine'); } dispatchCommand({ ok: true, raw: '[快捷键] 起爆地雷', confidence: 1, callsign: { kind: 'member', id: 'laobai', label: '老白' }, action: { id: 'detonate', label: '起爆地雷', kind: 'special', pri: 88 }, loc: null, mentioned: [], source: 'key' }); }
   if (k === 'r') { const p = World.player; if (p && !p.dead && !p.downed) tryReload(p); }
   if (k === 'g') { const p = World.player; if (p && !p.dead && !p.downed && p.grenades > 0) { p.grenades--; throwGrenade(p, p.x + Math.cos(p.facing) * 130, p.y + Math.sin(p.facing) * 130, 'grenade'); } }
-  if (k === 'e') { /* 拾取为自动 */ }
+  if (k === 'z') { e.preventDefault(); setViewMarker(); }
+  if (k === 'm') { e.preventDefault(); bigMap = !bigMap; $('right').style.width = bigMap ? '460px' : '236px'; MM.style.width = (bigMap ? 458 : 234) + 'px'; MM.style.height = (bigMap ? 380 : 190) + 'px'; MM.width = bigMap ? 916 : 468; MM.height = bigMap ? 760 : 380; }
   if (k === '+' || k === '=') { World.speed = World.speed >= 4 ? 1 : World.speed * 2; }
   if (k === '-') { World.speed = World.speed <= 1 ? 4 : World.speed / 2; }
+  if (k === 'escape') { if (document.pointerLockElement) document.exitPointerLock(); }
   if (pendingCands && (k === '1' || k === '2' || k === '3')) { e.preventDefault(); pickCandidate(+k - 1); return; }
   if (k >= '1' && k <= '9') {
     const list = World.units.filter(u => u.team === 'ally');
@@ -3423,36 +4311,57 @@ window.addEventListener('keyup', e => {
   Input.key[k] = false;
   if (k === 'v') stopVoice();
 });
+/* 第一人称视角：指针锁定后按 movementX/Y 旋转；ESC 或失焦自动释放 */
+document.addEventListener('pointerlockchange', () => {
+  Cam.locked = (document.pointerLockElement === CV);
+  const el = $('lockHint');
+  if (el) el.style.display = (Cam.locked || !World.started || World.over || isDeploying()) ? 'none' : 'block';
+});
 CV.addEventListener('mousemove', e => {
   const r = CV.getBoundingClientRect();
   Input.mouse.x = e.clientX - r.left; Input.mouse.y = e.clientY - r.top;
-  Input.mouseWorld = { x: Input.mouse.x + World.cam.x, y: Input.mouse.y + World.cam.y };
-  if (Input.dragUnit) {
-    const u = Input.dragUnit, m = Input.mouseWorld;
-    if (propBlocked(m.x, m.y, 8) || !passable(m.x, m.y)) return;
-    const z = zoneOf(m.x, m.y);
-    if (z) { u.x = m.x; u.y = m.y; u.homePos = { x: m.x, y: m.y }; }
-    else {
-      const z0 = zoneOf(u.x, u.y) || DEPLOY_ZONES[0];
-      u.x = clamp(m.x, z0.x1, z0.x2); u.y = clamp(m.y, z0.y1, z0.y2);
-      if (!propBlocked(u.x, u.y, 8)) u.homePos = { x: u.x, y: u.y };
+  if (isDeploying()) {                     // 部署：拖动队员微调站位
+    if (Input.dragUnit) {
+      const w = deployWorldPos(e), u = Input.dragUnit;
+      if (propBlocked(w.x, w.y, 8) || !passable(w.x, w.y)) return;
+      const z = zoneOf(w.x, w.y);
+      if (z) { u.x = w.x; u.y = w.y; u.homePos = { x: w.x, y: w.y }; }
+      else {
+        const z0 = zoneOf(u.x, u.y) || DEPLOY_ZONES[0];
+        u.x = clamp(w.x, z0.x1, z0.x2); u.y = clamp(w.y, z0.y1, z0.y2);
+        if (!propBlocked(u.x, u.y, 8)) u.homePos = { x: u.x, y: u.y };
+      }
     }
+    return;
   }
+  if (!Cam.locked) return;
+  const s = Cam.sens * (1 - Cam.ads * 0.55) * (Input.key['shift'] ? 0.72 : 1);
+  Cam.yaw += e.movementX * s;
+  Cam.pitch = clamp(Cam.pitch - e.movementY * s, -1.25, 1.25);
 });
 CV.addEventListener('mousedown', e => {
-  if (e.button === 0) {
-    if (World.phase === 'DEPLOY' && !World.deployDone) {
-      const u = pickUnitAt(Input.mouseWorld.x, Input.mouseWorld.y);
-      if (u) { Input.dragUnit = u; return; }
-    }
-    Input.mouseDown = true;
-  } else if (e.button === 2) {
-    World.marker = { x: Input.mouseWorld.x, y: Input.mouseWorld.y, t: World.t };
-    say('你', '标记点已设置', 'cmd');
+  if (isDeploying()) {
+    const u = pickUnitAtDeploy(e);
+    if (u) { Input.dragUnit = u; say('系统', '拖动 ' + u.name + ' 到合适位置，松开即落位。', 'sys'); }
+    return;
   }
+  if (!Cam.locked) { CV.requestPointerLock(); return; }
+  if (e.button === 0) Input.mouseDown = true;
+  else if (e.button === 2) { e.preventDefault(); Cam.adsTarget = 1; Input.ads = true; }
 });
-window.addEventListener('mouseup', e => { if (e.button === 0) { Input.mouseDown = false; Input.dragUnit = null; } });
+window.addEventListener('mouseup', e => {
+  if (e.button === 0) { Input.mouseDown = false; Input.dragUnit = null; }
+  else if (e.button === 2) { Cam.adsTarget = 0; Input.ads = false; }
+});
 CV.addEventListener('contextmenu', e => e.preventDefault());
+/* 准星指向地面的落点 —— 语音指令里的「这里 / 那个位置」就用它 */
+function setViewMarker() {
+  const B = camBasis();
+  let t = 1400;
+  if (B.f[1] < -0.02) t = clamp(-Cam.y / B.f[1], 60, 6000);
+  World.marker = { x: Cam.x + B.f[0] * t, y: Cam.z + B.f[2] * t, t: World.t };
+  say('你', '标记点已设置', 'cmd');
+}
 function pickUnitAt(x, y) {
   let best = null, bd = 22 * 22;
   for (const u of World.units) {
@@ -3496,25 +4405,62 @@ function showEndScreen(kind, text) {
     '<div class="go"><button class="btn" id="btnAgain">同一变体再来一次</button>' +
     '<button class="btn" id="btnNew">换个变体（随机车队/天气）</button></div>';
   $('endScreen').style.display = 'flex';
+  if (document.pointerLockElement) document.exitPointerLock();
+  const lh = $('lockHint'); if (lh) lh.style.display = 'none';
   $('btnAgain').onclick = () => { $('endScreen').style.display = 'none'; startGame(World.seed); };
   $('btnNew').onclick = () => { $('endScreen').style.display = 'none'; startGame((Math.random() * 1e9) | 0); };
 }
 
 /* ------------------------------------------------------------ 主循环 */
 let lastT = performance.now();
+let bigMap = false;
 function frame(now) {
   const raw = Math.min(0.06, (now - lastT) / 1000); lastT = now;
+  const dt = Math.max(raw, 0.001);
+  updateFpsFeel(dt);
   if (World.started && !World.paused && !World.over) {
-    const dt = raw * World.speed;
-    const n = Math.min(5, Math.max(1, Math.ceil(dt / 0.022)));
-    const h = dt / n;
+    const d = raw * World.speed;
+    const n = Math.min(5, Math.max(1, Math.ceil(d / 0.022)));
+    const h = d / n;
     for (let i = 0; i < n; i++) stepOnce(h);
   }
-  camFollow(Math.max(raw, 0.001));
-  draw();
-  drawMinimap();
-  updateHUD(Math.max(raw, 0.001));
+  camFollow(dt);
+  draw();                       // draw() 内部已经包含 drawHUD 与 drawMinimap
+  updateHUD(dt);
   requestAnimationFrame(frame);
+}
+
+/* 第一人称手感：后坐力、准星扩散、命中反馈、武器摆动。
+   全部由「玩家单位上一帧的 shots / hits 计数」驱动，渲染层不需要侵入逻辑层。 */
+let _lastShots = 0, _lastHits = 0;
+function updateFpsFeel(dt) {
+  const p = World.player;
+  if (!p) return;
+  World.viewPitch = Cam.pitch + Cam.recoilP;
+  if (p.shots > _lastShots) {
+    const n = p.shots - _lastShots; _lastShots = p.shots;
+    Cam.recoilP += 0.0135 * n * (1 - Cam.ads * 0.40);
+    Cam.recoilY += (RNG() - 0.5) * 0.009 * n;
+    wpnKick = Math.min(2.6, wpnKick + 1.15 * n);
+    crossSpread = Math.min(1.7, crossSpread + 0.40 * n);
+    Cam.shake = Math.min(1.1, Cam.shake + 0.13);
+  }
+  if (p.hits > _lastHits) { _lastHits = p.hits; hitMarker = 1; }
+  hitMarker = Math.max(0, hitMarker - dt * 3.4);
+  wpnKick += (0 - wpnKick) * Math.min(1, dt * 11);
+  const wantSway = (p.reloadT > 0 ? 7 : 0) + ((p.dead || p.downed) ? 22 : 0);
+  wpnSway += (wantSway - wpnSway) * Math.min(1, dt * 6);
+  if (p.hitFlash > 0.001) Cam.shake = Math.min(1.5, Cam.shake + dt * 3.4);
+  /* 倒地/阵亡时把视线压向地面 */
+  const wantPitch = p.dead ? -0.95 : (p.downed ? -0.55 : null);
+  if (wantPitch !== null && Math.abs(Cam.pitch - wantPitch) > 0.02) {
+    Cam.pitch += (wantPitch - Cam.pitch) * Math.min(1, dt * (p.dead ? 2.2 : 1.2));
+  }
+}
+function resetFpsFeel() {
+  _lastShots = 0; _lastHits = 0; hitMarker = 0; crossSpread = 0;
+  Cam.recoilP = 0; Cam.recoilY = 0; Cam.pitch = 0; Cam.adsTarget = 0;
+  wpnKick = 0; wpnSway = 0; Cam.shake = 0;
 }
 function stepOnce(dt) {
   World.phase = World.t < CFG.tIntel ? 'INTEL' : (World.deployDone ? 'BATTLE' : 'DEPLOY');
@@ -3543,12 +4489,15 @@ function stepOnce(dt) {
 function startGame(seed) {
   World.seed = seed >>> 0;
   initWorld(World.seed);
-  terrain = buildTerrain();
+  disposeScene(); buildTerrain();
   World.smokes = [];
   World.started = true; World.paused = false; World.over = false;
   World.deployDone = false; World.t = 0; World.speed = 1;
-  World.cam.x = clamp(World.player.x - view.w / 2, 0, Math.max(0, CFG.W - view.w));
-  World.cam.y = clamp(World.player.y - view.h / 2, 0, Math.max(0, CFG.H - view.h));
+  World.cam.x = World.player.x; World.cam.y = World.player.y;
+  resetFpsFeel(); resetKillFeed();
+  /* 开局把视线转向公路来向（东北），让玩家一睁眼就看见要伏击的那条路 */
+  Cam.yaw = Math.atan2(CFG.roadCY - World.player.y, POINTS.F.x - World.player.x);
+  Cam.lastX = World.player.x; Cam.lastZ = World.player.y;
   $('endScreen').style.display = 'none';
   openPanel(false); deployBar.style.display = 'block'; hideCand();
   refreshPanel();
@@ -3596,19 +4545,46 @@ $('dpRec').onclick = () => {
   const p0 = World.player; p0.x = RECOMMEND.player.x; p0.y = RECOMMEND.player.y;
   say('系统', '已按推荐方案部署：火力组与狙击手在南侧高地，反坦克组在北侧岩石，老白在东侧路边埋雷，小满/铁头在 C 点后方。', 'sys');
 };
-$('dpDone').onclick = () => { World.deployDone = true; World.t = Math.max(World.t, CFG.tDeploy); deployBar.style.display = 'none'; say('系统', '部署完成，进入潜伏。注意：不要提前开火。', 'sys'); };
+$('dpDone').onclick = () => {
+  World.deployDone = true; World.t = Math.max(World.t, CFG.tDeploy);
+  deployBar.style.display = 'none';
+  say('系统', '部署完成，进入潜伏。注意：不要提前开火。', 'sys');
+  toast('点击画面锁定鼠标 · ESC 释放');
+  const el = $('lockHint');
+  if (el) el.style.display = 'block';
+};
 deployBar.querySelector('#dpMine').onclick = () => {
   say('系统', '地雷埋设：东侧头车雷（x=' + Math.round(World.mineEast.x) + '）、西侧尾车雷（x=' + Math.round(World.mineWest.x) + '）。按 F 或喊「起爆」引爆。', 'sys');
 };
 window.addEventListener('blur', () => { Input.key = {}; Input.mouseDown = false; stopVoice(); });
 
-resize();
-initVoice();
+/* ------------------------------------------------------------ 启动 */
+if (!initGL()) {
+  document.body.innerHTML = '<div style="padding:48px;font:14px/1.9 "Segoe UI",sans-serif;' +
+    'color:#e6edf2;background:#07090a;height:100vh">' +
+    '<h2 style="letter-spacing:.1em">无法初始化 WebGL</h2>' +
+    '<p>本游戏使用第一人称 3D 渲染，需要支持 WebGL 的浏览器（Chrome / Edge / Firefox 最新版）。<br>' +
+    '若浏览器已支持，请检查是否在设置里关闭了硬件加速。</p></div>';
+  throw new Error('WebGL unavailable');
+}
+buildTextures();
+MESH_SOLDIER = buildSoldierMesh(false);
+MESH_SOLDIER_DOWN = buildSoldierMesh(true);
+['jeep', 'apc', 'tank', 'truck'].forEach(t => { MESH_VEH[t] = buildVehicleMesh(t); });
+MESH_WPN = buildWeaponMesh();
+buildAuxMeshes();
+buildSky();
 World.props = BASE_PROPS;
 World.decals = [];
 World.smokes = [];
-terrain = buildTerrain();
+buildTerrain();
 World.objState = [];
+resize();
+initVoice();
+/* 开场把镜头放在南侧高地上远眺公路，让玩家在开始菜单后面就能看到战场 */
+Cam.x = 900; Cam.z = 900; Cam.eyeY = EYE; Cam.y = EYE;
+Cam.yaw = Math.atan2(CFG.roadCY - 900, 1100 - 900);
+Cam.lastX = Cam.x; Cam.lastZ = Cam.z;
 requestAnimationFrame(frame);
 
 </script>
