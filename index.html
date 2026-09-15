@@ -1,0 +1,3616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<title>断头谷公路 · 伏击指挥</title>
+<style>
+  *{box-sizing:border-box;-webkit-user-select:none;user-select:none}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#10130d;
+    font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",system-ui,sans-serif;
+    color:#e9e7dc;font-size:12px}
+  #app{position:fixed;inset:0}
+  #game{position:absolute;inset:0;display:block;cursor:crosshair}
+  .panel{position:absolute;background:rgba(12,16,18,.84);border:1px solid rgba(150,180,120,.30);
+    border-radius:6px;box-shadow:0 4px 18px rgba(0,0,0,.45)}
+  .hd{font-size:11px;letter-spacing:.12em;color:#b9d36a;padding:6px 8px 4px;
+    border-bottom:1px solid rgba(150,180,120,.20);display:flex;justify-content:space-between;align-items:center}
+  .bd{padding:6px 8px}
+
+  /* 顶栏 */
+  #topbar{left:8px;right:8px;top:8px;height:46px;display:flex;align-items:center;gap:14px;padding:0 12px}
+  #topbar .tt{font-size:14px;font-weight:700;letter-spacing:.06em;color:#f2efe2}
+  #topbar .tt small{display:block;font-size:10px;font-weight:400;color:#9fae86;letter-spacing:.18em}
+  .kv{display:flex;flex-direction:column;line-height:1.25}
+  .kv b{font-size:14px;font-variant-numeric:tabular-nums;color:#e9e7dc}
+  .kv span{font-size:10px;color:#8d9a78;letter-spacing:.1em}
+  #topbar .sp{flex:1}
+  .pill{border:1px solid rgba(150,180,120,.35);border-radius:20px;padding:3px 10px;font-size:11px;
+    color:#cfd8b8;background:rgba(150,180,120,.08);white-space:nowrap}
+  .pill.warn{border-color:#ff8a3d;color:#ffb37a;background:rgba(255,138,61,.12)}
+  .pill.dead{border-color:#ff4d4d;color:#ff9a9a;background:rgba(255,77,77,.12)}
+
+  /* 小队面板 */
+  #squad{left:8px;top:62px;width:236px;max-height:calc(100vh - 250px);display:flex;flex-direction:column}
+  #squadList{overflow:auto;padding:4px}
+  .sq{display:grid;grid-template-columns:14px 1fr 62px;gap:6px;align-items:center;
+    padding:3px 5px;border-radius:4px;cursor:pointer;border:1px solid transparent}
+  .sq:hover{background:rgba(150,180,120,.10)}
+  .sq.sel{background:rgba(150,180,120,.16);border-color:rgba(150,180,120,.45)}
+  .sq.down{opacity:.55}
+  .sq.dead{opacity:.30;text-decoration:line-through}
+  .sq .nm{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sq .nm i{font-style:normal;font-size:9px;color:#8d9a78;margin-left:4px}
+  .sq .st{font-size:10px;text-align:right;white-space:nowrap}
+  .bar{height:3px;border-radius:2px;background:rgba(255,255,255,.13);overflow:hidden;margin-top:2px}
+  .bar>i{display:block;height:100%;background:#7fd1ff;transition:width .15s}
+  .bar.hp>i{background:#63d471}
+  .bar.am>i{background:#d8bb57}
+  .st-待命{color:#a8b394}.st-隐蔽{color:#7fd1ff}.st-警戒{color:#e6c44c}
+  .st-移动{color:#8fd4a8}.st-战斗{color:#ff9a6b}.st-被压制{color:#ff6b6b}
+  .st-找掩体{color:#ff6b6b}.st-集火{color:#ff9a6b}.st-反坦克{color:#ffd166}
+  .st-救援{color:#7fe0d0}.st-治疗{color:#7fe0d0}.st-撤退{color:#c9a0ff}
+  .st-撤离{color:#9ad0ff}.st-失能{color:#ff5a5a;font-weight:700}.st-阵亡{color:#666}
+  .st-恐慌{color:#ff3b3b;font-weight:700}.st-部署{color:#8d9a78}
+
+  /* 右侧 */
+  #right{right:8px;top:62px;width:262px;display:flex;flex-direction:column;gap:8px}
+  #objs .ob{display:flex;gap:6px;padding:3px 0;font-size:11px;line-height:1.35}
+  #objs .ob i{font-style:normal;width:12px;flex:0 0 12px;color:#8d9a78}
+  #objs .ob.done{color:#63d471}
+  #objs .ob.done i{color:#63d471}
+  #objs .ob.fail{color:#ff6b6b;text-decoration:line-through}
+  #objs .ob.sec{font-size:10px;color:#9aa88a}
+  #minimap{width:100%;height:150px;display:block;border-radius:4px}
+  #legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;color:#9aa88a;padding:5px 8px}
+  #legend b{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+
+  /* 底部 */
+  #bottom{left:8px;right:8px;bottom:8px;display:flex;gap:8px;align-items:flex-end;pointer-events:none}
+  #bottom>*{pointer-events:auto}
+  #subs{flex:1;min-height:74px;max-height:74px;overflow:hidden;padding:6px 10px;font-size:12.5px;line-height:1.55}
+  #subs .ln{opacity:0;animation:fadein .25s forwards}
+  #subs .ln .who{color:#b9d36a;font-weight:700}
+  #subs .ln .cmd{color:#7fd1ff}
+  #subs .ln .no{color:#ff8a3d}
+  #subs .ln .sys{color:#e6c44c}
+  #subs .ln.sys .who{color:#e6c44c}
+  @keyframes fadein{to{opacity:1}}
+
+  #cand{width:300px;display:none}
+  #cand .c{padding:4px 6px;border-radius:4px;cursor:pointer;border:1px solid transparent}
+  #cand .c:hover{background:rgba(150,180,120,.14);border-color:rgba(150,180,120,.4)}
+  #cand .c b{color:#ffd166;margin-right:6px}
+
+  #voicebox{width:390px}
+  #voicebox .row{display:flex;gap:6px;align-items:center;padding:5px 8px}
+  #voicebox input{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(150,180,120,.3);
+    border-radius:4px;color:#e9e7dc;padding:5px 8px;font-size:12px;font-family:inherit;outline:none}
+  #voicebox input:focus{border-color:#b9d36a}
+  .btn{border:1px solid rgba(150,180,120,.35);background:rgba(150,180,120,.10);color:#d7dfc4;
+    border-radius:4px;padding:5px 9px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .btn:hover{background:rgba(150,180,120,.22);color:#fff}
+  .btn.on{background:#b9d36a;color:#1b2013;border-color:#b9d36a;font-weight:700}
+  .btn.dim{opacity:.5}
+  .btn.red{border-color:rgba(255,90,90,.5);background:rgba(255,90,90,.12);color:#ffb0b0}
+  .btn.red:hover{background:rgba(255,90,90,.25)}
+
+  /* 指令面板 */
+  #cmdpanel{left:8px;bottom:8px;width:640px;display:none}
+  #cmdpanel .tabs{display:flex;gap:2px;padding:4px 6px 0}
+  #cmdpanel .tabs .btn{border-radius:4px 4px 0 0;padding:4px 8px}
+  #cmdpanel .cols{display:grid;grid-template-columns:132px 1fr 148px;gap:8px;padding:6px 8px;
+    max-height:230px;overflow:auto}
+  #cmdpanel h5{margin:0 0 4px;font-size:10px;color:#8d9a78;letter-spacing:.12em;font-weight:600}
+  #cmdpanel .chip{display:inline-block;margin:0 4px 4px 0;padding:3px 7px;border-radius:4px;font-size:11px;
+    border:1px solid rgba(150,180,120,.3);cursor:pointer;background:rgba(150,180,120,.07)}
+  #cmdpanel .chip:hover{background:rgba(150,180,120,.25);color:#fff}
+  #cmdpanel .chip.on{background:#b9d36a;color:#1b2013;font-weight:700;border-color:#b9d36a}
+  #cmdpanel .prev{padding:4px 8px 8px;font-size:11px;color:#cfd8b8;border-top:1px solid rgba(150,180,120,.2)}
+  #cmdpanel .prev b{color:#7fd1ff}
+
+  /* 预警条 */
+  #alert{position:absolute;left:50%;top:76px;transform:translateX(-50%);display:none;
+    background:rgba(255,60,40,.20);border:1px solid rgba(255,90,60,.75);color:#ffd0c0;
+    padding:6px 16px;border-radius:4px;font-size:14px;font-weight:700;letter-spacing:.08em;
+    animation:pulse .7s infinite alternate;z-index:20;pointer-events:none}
+  @keyframes pulse{from{opacity:.65}to{opacity:1}}
+
+  /* 遮罩 */
+  .overlay{position:absolute;inset:0;background:rgba(8,10,7,.90);display:flex;align-items:center;
+    justify-content:center;z-index:50}
+  .overlay .card{width:760px;max-width:92vw;max-height:92vh;overflow:auto;padding:22px 26px;
+    background:rgba(16,20,16,.97);border:1px solid rgba(150,180,120,.3);border-radius:8px}
+  .overlay h1{margin:0 0 4px;font-size:24px;letter-spacing:.10em;color:#e9e7dc}
+  .overlay h1 small{display:block;font-size:11px;letter-spacing:.3em;color:#8d9a78;margin-top:6px;font-weight:400}
+  .overlay h2{font-size:13px;color:#b9d36a;letter-spacing:.14em;margin:18px 0 6px;
+    border-bottom:1px solid rgba(150,180,120,.2);padding-bottom:4px}
+  .overlay p,.overlay li{font-size:12.5px;line-height:1.7;color:#cfcdc0;margin:4px 0}
+  .overlay ul{margin:4px 0;padding-left:18px}
+  .overlay .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
+  .overlay kbd{background:rgba(150,180,120,.16);border:1px solid rgba(150,180,120,.35);border-radius:3px;
+    padding:1px 5px;font-size:11px;font-family:inherit;color:#e6f0cf}
+  .overlay .go{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .overlay .go .btn{padding:9px 18px;font-size:13px}
+  .grade{font-size:64px;font-weight:800;line-height:1;letter-spacing:.05em}
+  .stat{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed rgba(150,180,120,.15);font-size:12.5px}
+  .stat b{color:#e9e7dc;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;margin-right:6px}
+  .ok{background:rgba(99,212,113,.16);color:#8ee29a;border:1px solid rgba(99,212,113,.4)}
+  .bad{background:rgba(255,90,90,.14);color:#ffa0a0;border:1px solid rgba(255,90,90,.4)}
+  #toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
+    font-size:22px;font-weight:700;color:#ffd166;text-shadow:0 2px 12px #000;opacity:0;
+    transition:opacity .3s;z-index:30}
+  #mic{width:9px;height:9px;border-radius:50%;background:#5b6b4a;display:inline-block;margin-right:6px}
+  #mic.on{background:#ff4d4d;box-shadow:0 0 8px #ff4d4d;animation:pulse .6s infinite alternate}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div class="panel" id="topbar">
+    <div class="tt">断头谷公路<small>BROKEN-HEAD VALLEY ROAD</small></div>
+    <div class="kv"><b id="mTime">00:00</b><span>任务时间</span></div>
+    <div class="kv"><b id="mPhase">情报</b><span>阶段</span></div>
+    <div class="kv"><b id="mAlive">11</b><span>可用兵力</span></div>
+    <div class="kv"><b id="mKill">0</b><span>敌伤亡</span></div>
+    <div class="sp"></div>
+    <div class="pill" id="mWeather">晴天 · 能见度好</div>
+    <div class="pill" id="mSpeed" style="cursor:pointer">速度 1x</div>
+    <div class="pill" id="mSpeedUp" style="cursor:pointer">时间加速(2x/4x)</div>
+    <div class="pill" id="mNoise">识别环境 良好</div>
+  </div>
+
+  <div class="panel" id="squad">
+    <div class="hd"><span>小队状态 · SQUAD</span><span id="sqCount">10/10</span></div>
+    <div id="squadList"></div>
+    <div class="bd" style="border-top:1px solid rgba(150,180,120,.2);padding:5px 8px;color:#9aa88a;font-size:10px">
+      点击队员可单独下令；<kbd style="font-family:inherit">1</kbd>组/火力组/反坦克组/支援组 可用指令直接呼叫
+    </div>
+  </div>
+
+  <div id="right">
+    <div class="panel" id="objs">
+      <div class="hd"><span>任务目标 · OBJECTIVES</span><span id="ojTime">剩余 --:--</span></div>
+      <div class="bd" id="objList"></div>
+    </div>
+    <div class="panel" id="mapPanel">
+      <div class="hd"><span>战场态势 · TACTICAL MAP</span><span id="mpHint">右键标记</span></div>
+      <canvas id="minimap"></canvas>
+      <div id="legend"></div>
+    </div>
+  </div>
+
+  <div id="alert">炮击预警</div>
+  <div id="toast"></div>
+
+  <div id="bottom">
+    <div class="panel" id="subs"></div>
+    <div>
+      <div class="panel" id="cand">
+        <div class="hd"><span>识别置信度低，请确认</span><span>按 1/2/3</span></div>
+        <div class="bd" id="candList"></div>
+      </div>
+      <div class="panel" id="voicebox">
+        <div class="row">
+          <span id="mic"></span>
+          <button class="btn" id="btnVoice">按住 [V] 说话</button>
+          <button class="btn" id="btnCmd">指令面板 [Q]</button>
+        </div>
+        <div class="row" style="padding-top:0">
+          <input id="txtCmd" placeholder="备用输入：如「石头，打坦克」→ 回车" autocomplete="off" />
+          <button class="btn" id="btnSend">下达</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="cmdpanel">
+    <div class="tabs">
+      <button class="btn on" data-tab="0">指令</button>
+      <button class="btn" data-tab="1">编组</button>
+      <button class="btn" data-tab="2">战术</button>
+      <span class="sp" style="flex:1"></span>
+      <button class="btn dim" id="cmdClose">关闭</button>
+    </div>
+    <div class="cols" id="cmdCols"></div>
+    <div class="prev">当前指令：<b id="cmdPrev">未选择</b> &nbsp;—&nbsp; 呼号省略时默认「准星标记点 / 最近队友」</div>
+  </div>
+
+  <div class="overlay" id="startScreen">
+    <div class="card">
+      <h1>断头谷公路<small>VOICE-COMMAND AMBUSH · 第一关</small></h1>
+      <p>下午，晴天，能见度好。敌方一支补给车队将通过山谷公路（东 → 西）。你率 10 人伏击，
+        目标是 <b>摧毁坦克</b>、<b>截获密码箱</b>，并带 <b>至少 6 人撤离</b>。</p>
+      <h2>操作</h2>
+      <div class="grid">
+        <ul>
+          <li><kbd>WASD</kbd> 移动（你自己也是 10 人之一，能开枪、扔雷、放炸药）</li>
+          <li><kbd>鼠标左键</kbd> 射击 · <kbd>R</kbd> 换弹</li>
+          <li><kbd>鼠标右键</kbd> 放置准星标记点（指令的目标/地点）</li>
+          <li><kbd>E</kbd> 交互（拾取密码箱 / 安放炸药）</li>
+          <li><kbd>V</kbd> 按住说话（语音指挥）</li>
+        </ul>
+        <ul>
+          <li><kbd>Q</kbd> 指令面板（语音失败也能玩，语音不是唯一操作方式）</li>
+          <li><kbd>T</kbd> 文本指令输入 · <kbd>1/2/3</kbd> 确认候选</li>
+          <li><kbd>Space</kbd> 暂停 · <kbd>+</kbd>/<kbd>-</kbd> 时间加速</li>
+          <li><kbd>1</kbd>~<kbd>5</kbd> 选中队员（左侧列表点击亦可）</li>
+          <li>部署阶段：拖动队员到合理位置，或直接用推荐部署</li>
+        </ul>
+      </div>
+      <h2>语音语法</h2>
+      <p><b>呼号 + 动作 + 目标/地点 + 修饰</b>　例：“老周，前进” · “石头，打坦克” · “阿杰，隐蔽” ·
+        “全体，撤退到 C 点” · “1 组，跟我来” · “小满，救阿杰” · “反坦克组，打坦克”</p>
+      <p>呼号可省略（默认当前准星目标 / 最近队友）；目标支持准星标记点、语音方向（“11 点方向机枪手”）、
+        默认规则（“打坦克”默认最近威胁坦克）。识别置信度低于 70% 时不执行，弹候选让你按 1/2/3 确认。
+        炮击、爆炸、机枪声会降低识别率，此时“重复”很有用。</p>
+      <div class="go">
+        <button class="btn" id="btnStart">开始任务（进入部署）</button>
+        <button class="btn" id="btnFast">跳过部署，直接进入潜伏</button>
+      </div>
+      <p style="margin-top:14px;font-size:11px;color:#8d9a78">
+        提示：麦克风需要浏览器授权；若语音不可用，请用 <kbd>Q</kbd> 指令面板或文本输入，效果完全一致。</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="endScreen" style="display:none">
+    <div class="card" id="endCard"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   断头谷公路 · 伏击指挥   —— 单文件实现
+   依据策划文档：语音指令表 / 队友 AI 状态机 / 第一关关卡设计
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- 工具 */
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+const dist2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
+const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+const norm = v => { let d = v % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let RNG = mulberry32(Date.now() & 0xffff);
+const rr = (a, b) => a + RNG() * (b - a);
+const ri = (a, b) => Math.floor(rr(a, b + 1));
+const pick = arr => arr[Math.floor(RNG() * arr.length)];
+
+function segCircle(x1, y1, x2, y2, cx, cy, r) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const fx = x1 - cx, fy = y1 - cy;
+  const a = dx * dx + dy * dy; if (a < 1e-6) return dist2(x1, y1, cx, cy) <= r * r;
+  let t = -(fx * dx + fy * dy) / a; t = clamp(t, 0, 1);
+  const px = x1 + dx * t - cx, py = y1 + dy * t - cy;
+  return px * px + py * py <= r * r;
+}
+/* 视线判定
+   - 若射手/目标本身就贴着（或站在）该掩体上，不算它遮挡，否则「躲在石头后」会变成「完全瞎」
+   - losFire  ：真正挡子弹的东西（岩石/石墙/油桶 + 烟雾）—— 开枪前用它
+   - losSight ：再加树冠的远距离遮蔽 —— 感知/索敌用它
+   - losBlocked：保留为「含树木的完全遮挡」（供地图/调试使用） */
+function losCore(x1, y1, x2, y2, opts) {
+  const hard = opts.hard, soft = opts.soft, smoke = opts.smoke;
+  for (let i = 0; i < World.props.length; i++) {
+    const p = World.props[i];
+    if (p.destroyed) continue;
+    if (hard && p.blocksBullet) {
+      const rr2 = p.r + 4;
+      if (dist2(x1, y1, p.x, p.y) < rr2 * rr2) continue;
+      if (dist2(x2, y2, p.x, p.y) < rr2 * rr2) continue;
+      if (segCircle(x1, y1, x2, y2, p.x, p.y, p.r)) return true;
+    } else if (soft && p.soft && p.blocksLOS) {
+      if (segCircle(x1, y1, x2, y2, p.x, p.y, p.r * 0.7)) return true;
+    }
+  }
+  if (smoke) {
+    const sm = World.smokes;
+    if (sm) for (let i = 0; i < sm.length; i++) {
+      const s = sm[i];
+      if (segCircle(x1, y1, x2, y2, s.x, s.y, s.r * 0.8)) return true;
+    }
+  }
+  return false;
+}
+function losFire(x1, y1, x2, y2) { return losCore(x1, y1, x2, y2, { hard: true, soft: false, smoke: true }); }
+function losSight(x1, y1, x2, y2) { return losCore(x1, y1, x2, y2, { hard: true, soft: true, smoke: true }); }
+function losBlocked(x1, y1, x2, y2) { return losCore(x1, y1, x2, y2, { hard: true, soft: true, smoke: true }); }
+
+/* ------------------------------------------------------- 世界 / 关卡配置 */
+const PX_PER_M = 8;
+const CFG = {
+  W: 2200, H: 1300,
+  roadTop: 580, roadBot: 720, roadCY: 650,
+  riverX1: 306, riverX2: 414,
+  bridgeY1: 566, bridgeY2: 734,
+  tIntel: 30,        // 0:00-0:30 情报
+  tDeploy: 120,      // 0:30-2:00 部署
+  convoyIn: 175,     // 2:55 先头车进入地图
+  reinforceAt: 480,  // 8:00 增援
+  missionEnd: 600,   // 10:00 强制结束
+  tailSpeedUp: 250,  // 车队接近西侧出口
+  convoyStopX: 1020, // 伏击圈停车线（第 0 辆车停在这里，正好压过 1120/1040 两枚头车雷）
+  convoyGap: 145,    // 各车之间的排队间距（按车序递推，避免重叠）
+};
+
+const POINTS = {
+  A: { key: 'A', name: 'A 南侧高地', short: 'A', x: 880, y: 900, r: 135, desc: '树林+岩石，视野好，会被坦克炮击' },
+  B: { key: 'B', name: 'B 北侧岩石', short: 'B', x: 1080, y: 330, r: 132, desc: '巨石+壕沟，反坦克侧射位' },
+  C: { key: 'C', name: 'C 桥梁/隘口', short: 'C', x: 360, y: 650, r: 115, desc: '窄路+桥，撤离点（可炸桥）' },
+  D: { key: 'D', name: 'D 油桶', short: 'D', x: 1330, y: 522, r: 62, desc: '路边油桶，可引爆杀伤步兵' },
+  E: { key: 'E', name: 'E 南侧树林', short: 'E', x: 760, y: 1090, r: 150, desc: '密林，隐蔽撤退路线' },
+  F: { key: 'F', name: 'F 东侧入口', short: 'F', x: 2020, y: 650, r: 120, desc: '公路拐弯，先头车进入点' },
+  G: { key: 'G', name: 'G 西侧出口', short: 'G', x: 120, y: 650, r: 110, desc: '公路直道，敌人逃跑点' },
+};
+const PT_ALIAS = { A: 'A', B: 'B', C: 'C', D: 'D', E: 'E', F: 'F', G: 'G' };
+// 撤离点（可被炸桥改变）
+const EVAC_DEFAULT = { key: 'C', x: POINTS.C.x, y: POINTS.C.y, name: 'C 桥梁/隘口' };
+const EVAC_ALT = { key: 'E', x: POINTS.E.x, y: POINTS.E.y, name: 'E 南侧树林' };
+
+// 公路路径（东 → 西），带 F 点拐弯
+const ROAD_PATH = [
+  [2320, 700], [2090, 668], [1900, 655], [1400, 648], [900, 650], [520, 650], [414, 650], [306, 650], [150, 650], [-60, 650]
+];
+const CONVOY_WAY = [];
+(function buildWay() {
+  // 沿公路中心插值，供车辆循迹
+  for (let i = 0; i < ROAD_PATH.length - 1; i++) {
+    const [x1, y1] = ROAD_PATH[i], [x2, y2] = ROAD_PATH[i + 1];
+    const n = Math.max(1, Math.round(dist(x1, y1, x2, y2) / 60));
+    for (let k = 0; k < n; k++) CONVOY_WAY.push({ x: lerp(x1, x2, k / n), y: lerp(y1, y2, k / n) });
+  }
+  CONVOY_WAY.push({ x: ROAD_PATH[ROAD_PATH.length - 1][0], y: ROAD_PATH[ROAD_PATH.length - 1][1] });
+})();
+
+/* ------------------------------------------------------------- 队友花名册 */
+/* 呼号必须音素差异大，避免识别混淆（文档要点） */
+const ROSTER = [
+  { id: 'ajie', name: '阿杰', role: '步枪手', group: '1组', deputy: true, weapon: 'rifle', aliases: ['阿杰', '阿杰尔', '阿杰哥', '杰哥', '阿洁', '阿杰儿'] },
+  { id: 'laozhou', name: '老周', role: '机枪手', group: '1组', weapon: 'mg', aliases: ['老周', '周哥', '周叔'] },
+  { id: 'xiaoxia', name: '小夏', role: '狙击手', group: '1组', weapon: 'sniper', aliases: ['小夏', '夏姐', '小侠'] },
+  { id: 'daliu', name: '大刘', role: '步枪手', group: '1组', weapon: 'rifle', aliases: ['大刘', '大流', '刘哥'] },
+  { id: 'alan', name: '阿兰', role: '步枪手', group: '2组', leader: true, weapon: 'rifle', aliases: ['阿兰', '阿蓝', '兰姐'] },
+  { id: 'shitou', name: '石头', role: '反坦克手', group: '2组', weapon: 'at', aliases: ['石头', '石头哥', '石哥'] },
+  { id: 'houzi', name: '猴子', role: '反坦克手', group: '2组', weapon: 'at', aliases: ['猴子', '猴哥', '猴儿'] },
+  { id: 'laobai', name: '老白', role: '爆破手', group: '2组', weapon: 'demo', aliases: ['老白', '白哥', '白叔'] },
+  { id: 'xiaoman', name: '小满', role: '医疗兵', group: '支援组', weapon: 'medic', aliases: ['小满', '满姐', '小曼', '医疗兵', '医生', '军医'] },
+  { id: 'tietou', name: '铁头', role: '弹药/支援', group: '支援组', weapon: 'rifle', aliases: ['铁头', '铁头哥', '铁哥'] },
+];
+const GROUPS = {
+  '1组': ['ajie', 'laozhou', 'xiaoxia', 'daliu'],
+  '2组': ['alan', 'shitou', 'houzi', 'laobai'],
+  '火力组': ['ajie', 'laozhou', 'daliu'],
+  '反坦克组': ['shitou', 'houzi'],
+  '支援组': ['xiaoman', 'tietou'],
+};
+const ROLE_CALL = { '机枪手': ['laozhou'], '狙击手': ['xiaoxia'], '反坦克手': ['shitou', 'houzi'], '爆破手': ['laobai'], '医疗兵': ['xiaoman'], '弹药兵': ['tietou'], '步枪手': ['ajie', 'daliu', 'alan'] };
+
+/* --------------------------------------------------------------- 武器表 */
+const WEAPONS = {
+  rifle: { name: '步枪', dmg: 13, range: 720, rof: 0.12, burst: 3, burstGap: 0.34, spread: 0.045, mag: 30, ammo: 240, reload: 2.2, pen: 0.12, sup: 7, speed: 950 },
+  mg: { name: '机枪', dmg: 10, range: 780, rof: 0.09, burst: 8, burstGap: 1.0, spread: 0.075, mag: 100, ammo: 400, reload: 5.0, pen: 0.15, sup: 24, speed: 950 },
+  sniper: { name: '狙击枪', dmg: 72, range: 1300, rof: 1.7, burst: 1, burstGap: 0, spread: 0.006, mag: 10, ammo: 60, reload: 3.2, pen: 0.22, sup: 12, speed: 1200 },
+  medic: { name: '步枪', dmg: 11, range: 660, rof: 0.14, burst: 3, burstGap: 0.36, spread: 0.052, mag: 30, ammo: 180, reload: 2.3, pen: 0.10, sup: 6, speed: 950 },
+  demo: { name: '步枪+炸药', dmg: 13, range: 700, rof: 0.13, burst: 3, burstGap: 0.34, spread: 0.048, mag: 30, ammo: 210, reload: 2.2, pen: 0.12, sup: 7, speed: 950 },
+  at: { name: '火箭筒/步枪', dmg: 13, range: 700, rof: 0.13, burst: 3, burstGap: 0.34, spread: 0.05, mag: 30, ammo: 180, reload: 2.4, pen: 0.12, sup: 7, speed: 950 },
+  erifle: { name: '敌步枪', dmg: 8, range: 640, rof: 0.16, burst: 3, burstGap: 0.5, spread: 0.075, mag: 30, ammo: 999, reload: 2.6, pen: 0.10, sup: 6, speed: 950 },
+  emg: { name: '敌机枪', dmg: 7, range: 720, rof: 0.1, burst: 10, burstGap: 1.2, spread: 0.095, mag: 120, ammo: 999, reload: 5.5, pen: 0.12, sup: 20, speed: 950 },
+};
+/* 火箭弹：两名反坦克手各 3 发 = 全队 6 发，必须能可靠敲掉一辆 950 血的坦克。
+   早期 dmgVeh 300 / splash 62，实测 6 发全部打出去只造成约 760 点伤害 ——
+   坦克会顶着 4 点血活到终场，用车顶机枪打掉我方三分之一的伤亡，主目标实际不可达。
+   splash 放到 84（近失弹不再几乎不算伤害）、dmgVeh 提到 340。
+   弹速 400 → 900：火箭弹本身散布只有 ±0.02 弧度，但 480px 的飞行要 1.2 秒，
+   而火箭没有提前量计算 —— 坦克在这 1.2 秒里能挪 30~50px，实测平均落点偏 58px，
+   等于把 300 点直击衰减成 137 点溅射。900px/s 才符合 RPG 的实际速度，也把飞行压到 0.7 秒内。 */
+const ROCKET = { name: '火箭弹', speed: 900, dmgVeh: 340, dmgInf: 70, splash: 84, rof: 5.5, ammo: 3, reload: 4.0, range: 640 };
+const SHELL = { name: '坦克主炮', speed: 640, dmg: 190, splash: 96, rof: 11, warn: 1.6 };
+
+/* --------------------------------------------------------------- 车辆表 */
+/* 注意 armor 字段的语义：damageVehicle 里「子弹的穿透系数 = v.armor」，
+   所以数值越大＝越软（坦克 0.04 几乎免疫步枪，卡车 0.60 一梭子就打穿）。
+   卡车是帆布车厢的军卡，密码箱有 62% 概率锁在它后厢，若步枪打不动它，
+   一旦两名反坦克手的 6 发火箭都在坦克上打光，本局主目标就再也无法完成 ——
+   因此卡车必须留给小口径火力一条可靠通路。 */
+const VEHICLES = {
+  jeep: { name: '吉普', hp: 150, len: 46, wid: 24, speed: 78, armor: 0.30, crew: 2, cap: 0, mg: { dmg: 7, range: 480, rof: 0.13, spread: 0.10, sup: 16 } },
+  apc: { name: '装甲车', hp: 400, len: 60, wid: 30, speed: 62, armor: 0.16, crew: 3, cap: 6, mg: { dmg: 9, range: 520, rof: 0.11, spread: 0.095, sup: 24 } },
+  tank: { name: '坦克', hp: 950, len: 74, wid: 38, speed: 44, armor: 0.04, crew: 3, cap: 0, mg: { dmg: 9, range: 520, rof: 0.12, spread: 0.10, sup: 20 }, cannon: true },
+  truck: { name: '卡车', hp: 260, len: 66, wid: 30, speed: 66, armor: 0.60, crew: 2, cap: 6, mg: null },
+};
+
+/* --------------------------------------------------------- 地图掩体物件 */
+function rock(x, y, r) { return { type: 'rock', x, y, r, cover: 0.95, blocksLos: true, blocksBullet: true, hard: true, destroyed: false }; }
+function tree(x, y, r) { return { type: 'tree', x, y, r: r || 15, cover: 0.45, blocksLos: true, blocksBullet: false, hard: false, destroyed: false, soft: true }; }
+function bush(x, y, r) { return { type: 'bush', x, y, r: r || 17, cover: 0.35, blocksLos: true, blocksBullet: false, hard: false, destroyed: false, soft: true }; }
+function barrel(x, y) { return { type: 'barrel', x, y, r: 8, cover: 0.5, blocksLos: true, blocksBullet: true, hard: true, destroyed: false, explosive: true, hp: 30 }; }
+function wall(x, y, r) { return { type: 'wall', x, y, r, cover: 1.0, blocksLos: true, blocksBullet: true, hard: true, destroyed: false }; }
+function trench(x, y, w, h) { return { type: 'trench', x, y, r: Math.max(w, h) / 2, w, h, cover: 0.85, blocksLos: false, blocksBullet: false, hard: false, destroyed: false, low: true }; }
+
+const BASE_PROPS = [
+  /* A 南侧高地：树林 + 岩石（视野好，会被炮击） */
+  rock(806, 876, 22), rock(958, 946, 26), rock(742, 986, 19), rock(902, 1042, 24), rock(1010, 856, 18),
+  tree(760, 838, 16), tree(842, 822, 17), tree(918, 852, 15), tree(690, 902, 16), tree(786, 1062, 17),
+  tree(882, 1108, 16), tree(1002, 1050, 15), tree(1030, 928, 16), tree(650, 990, 15), tree(980, 1130, 16),
+  bush(868, 968, 16), bush(940, 1000, 15),
+  /* B 北侧岩石：巨石 + 壕沟 */
+  rock(1024, 316, 27), rock(1128, 350, 31), rock(1078, 430, 23), rock(1180, 262, 20), rock(966, 400, 19),
+  bush(1050, 370, 15), bush(1104, 302, 14), bush(1140, 420, 15), bush(1000, 258, 14),
+  /* E 南侧树林：密林（隐蔽撤退路线） */
+  tree(660, 1060, 17), tree(722, 1140, 16), tree(800, 1190, 17), tree(880, 1240, 16), tree(560, 1140, 16),
+  tree(620, 1210, 15), tree(760, 1250, 16), tree(900, 1160, 15), bush(700, 1080, 16), bush(820, 1120, 15),
+  /* C 桥梁/隘口：桥头石墙与石堆 */
+  wall(300, 492, 20), wall(424, 492, 20), wall(300, 808, 20), wall(424, 808, 20),
+  rock(268, 596, 16), rock(456, 596, 15), rock(360, 852, 18),
+  /* D 油桶（可引爆） */
+  barrel(1312, 512), barrel(1338, 526), barrel(1324, 556),
+  /* 公路两侧零散掩体（供 AI 找掩体） */
+  rock(1250, 780, 17), rock(1494, 800, 19), rock(1700, 812, 18), rock(1900, 786, 17),
+  rock(1150, 520, 16), rock(1420, 506, 18), rock(1650, 498, 17), rock(1860, 530, 18), rock(2050, 540, 16),
+  tree(1600, 880, 16), tree(1780, 900, 15), tree(1440, 900, 16), tree(1980, 880, 15),
+  tree(1200, 430, 15), tree(1560, 388, 16), tree(1760, 400, 15),
+  rock(700, 540, 18), rock(560, 758, 17), rock(830, 790, 16), rock(1000, 762, 17),
+  bush(1620, 760, 15), bush(1520, 900, 15), bush(1880, 720, 15),
+];
+
+/* ------------------------------------------------------ 部署区（4 个） */
+const DEPLOY_ZONES = [
+  { name: '南侧树林 / 高地', x1: 600, y1: 790, x2: 1210, y2: 1210, desc: '适合火力组、狙击手' },
+  { name: '北侧壕沟 / 岩石', x1: 900, y1: 230, x2: 1320, y2: 480, desc: '适合反坦克组' },
+  { name: '东侧路边 / 伏击圈侧翼', x1: 1120, y1: 500, x2: 1660, y2: 920, desc: '适合爆破手埋雷 / 反坦克侧射' },
+  { name: '后方 C 点', x1: 180, y1: 760, x2: 520, y2: 1090, desc: '医疗兵与撤退点' },
+];
+
+/* 推荐部署（文档「推荐部署」） */
+const RECOMMEND = {
+  player: { x: 872, y: 872 },
+  laozhou: { x: 946, y: 930 }, xiaoxia: { x: 796, y: 856 }, ajie: { x: 902, y: 984 }, daliu: { x: 828, y: 950 },
+  shitou: { x: 1058, y: 356 }, houzi: { x: 1116, y: 404 },
+  alan: { x: 706, y: 1118 }, laobai: { x: 1234, y: 802 },   // 爆破手守在头车雷侧后（公路南肩，离路心约 155px）
+  xiaoman: { x: 322, y: 900 }, tietou: { x: 420, y: 856 },
+};
+
+/* =========================================================================
+   一、语音指令解析（呼号 + 动作 + 目标/地点 + 修饰）
+   ========================================================================= */
+const ACTIONS = [
+  /* 紧急 / 元指令 */
+  { id: 'ceasefire', label: '停火', keys: ['停火', '别开火', '停止射击', '不要开火', '先别打', '别打了'], kind: 'combat', pri: 95 },
+  { id: 'cancel', label: '取消当前指令', keys: ['取消', '解除命令', '撤销指令', '取消命令'], kind: 'misc', pri: 92 },
+  { id: 'repeat', label: '重复上一指令', keys: ['重复', '再说一遍', '重新下令', '重复命令'], kind: 'misc', pri: 91 },
+  { id: 'ack', label: '收到', keys: ['收到', '了解', '知道了', '明白'], kind: 'misc', pri: 90 },
+  { id: 'detonate', label: '起爆地雷', keys: ['起爆', '引爆', '炸雷', '按雷', '起爆炸药'], kind: 'special', pri: 88 },
+  { id: 'blowBridge', label: '炸桥', keys: ['炸桥', '炸掉桥', '把桥炸了', '爆破桥梁'], kind: 'special', pri: 87 },
+  /* 移动 */
+  { id: 'retreatTo', label: '撤退到指定点', keys: ['撤退到', '撤到', '退到', '向后撤到', '撤退至'], kind: 'move', pri: 86, needLoc: true },
+  { id: 'retreat', label: '撤退', keys: ['撤退', '后撤', '提前撤', '撤回去'], kind: 'move', pri: 85 },
+  { id: 'evac', label: '撤离', keys: ['撤离', '撤出', '脱离战斗', '快跑', '撤出去', '离开这里'], kind: 'move', pri: 84 },
+  { id: 'hold', label: '原地待命', keys: ['等待', '待命', '原地', '别动', '停下', '停住'], kind: 'move', pri: 54 },
+  { id: 'spread', label: '散开', keys: ['散开', '拉开距离', '分散', '拉开'], kind: 'move', pri: 53 },
+  { id: 'takeCover', label: '隐蔽', keys: ['隐蔽', '躲起来', '找掩体', '趴下', '躲好', '藏起来', '进入隐蔽'], kind: 'move', pri: 52 },
+  { id: 'followMe', label: '跟我来', keys: ['跟我来', '跟随我', '跟上我', '跟着我', '跟我走', '跟随'], kind: 'move', pri: 51 },
+  { id: 'fallback', label: '后退', keys: ['后退', '退后', '往回走', '退回去', '往后撤'], kind: 'move', pri: 50 },
+  { id: 'flank', label: '包围/包抄', keys: ['包围', '包抄', '绕过去', '迂回', '绕到侧面', '走侧翼'], kind: 'move', pri: 49 },
+  { id: 'advance', label: '前进', keys: ['前进', '推进', '往前走', '压上去', '向前推进', '上前'], kind: 'move', pri: 48 },
+  { id: 'gotoPoint', label: '前往地点', keys: ['前往', '移动到', '转移到', '去到', '走到', '去往', '去'], kind: 'move', pri: 47, needLoc: true },
+  { id: 'moveLeft', label: '左移', keys: ['左移', '向左移动', '往左边移', '向左'], kind: 'move', pri: 46 },
+  { id: 'moveRight', label: '右移', keys: ['右移', '向右移动', '往右边移', '向右'], kind: 'move', pri: 46 },
+  { id: 'enterBuilding', label: '进屋/进掩体', keys: ['进屋', '进房子', '进建筑', '进屋警戒'], kind: 'move', pri: 45 },
+  /* 反装甲 / 战斗 */
+  { id: 'focusFire', label: '集火', keys: ['集中火力', '集火', '打那个', '打这个', '一起打', '打准星那个', '都打', '打它'], kind: 'combat', pri: 82 },
+  { id: 'atTank', label: '打坦克', keys: ['打坦克', '攻击坦克', '反坦克', '炸坦克', '干掉坦克', '打掉坦克'], kind: 'atk', pri: 80, target: 'tank' },
+  { id: 'atAPC', label: '打装甲车', keys: ['打装甲车', '攻击装甲车', '打运兵车', '炸装甲车', '打装甲'], kind: 'atk', pri: 79, target: 'apc' },
+  { id: 'atJeep', label: '打吉普', keys: ['打吉普车', '打吉普', '打小车', '攻击吉普'], kind: 'atk', pri: 78, target: 'jeep' },
+  /* 密码箱有 62% 概率锁在卡车后厢，必须有办法指名打它，否则该局面下箱子拿不到 */
+  { id: 'atTruck', label: '打卡车', keys: ['打卡车', '打货车', '打运兵卡车', '攻击卡车', '打那辆卡车', '打补给车', '打军卡', '打运输车', '炸卡车'], kind: 'atk', pri: 77, target: 'truck' },
+  { id: 'atMG', label: '打机枪手', keys: ['打机枪手', '干掉机枪手', '打机枪'], kind: 'atk', pri: 76, target: 'mg' },
+  { id: 'atOfficer', label: '打军官', keys: ['打指挥官', '打军官', '干掉军官', '打当官的'], kind: 'atk', pri: 76, target: 'officer' },
+  { id: 'atInf', label: '打步兵', keys: ['打步兵群', '打步兵', '打敌人', '打人', '清理步兵'], kind: 'atk', pri: 74, target: 'inf' },
+  { id: 'coverMe', label: '掩护我', keys: ['掩护我前进', '掩护我', '帮我压制', '掩护', '压制他们'], kind: 'combat', pri: 73 },
+  { id: 'suppress', label: '火力压制', keys: ['火力压制', '压制', '压住他们', '压住', '别让他们抬头'], kind: 'combat', pri: 72 },
+  { id: 'grenade', label: '投手雷', keys: ['投手雷', '扔手榴弹', '手榴弹', '扔雷', '投雷'], kind: 'combat', pri: 66 },
+  { id: 'smoke', label: '放烟雾', keys: ['放烟雾', '烟雾弹', '打烟雾', '烟幕', '放烟'], kind: 'combat', pri: 65 },
+  { id: 'rocket', label: '用火箭筒', keys: ['用火箭筒', '火箭筒', '打火箭'], kind: 'combat', pri: 64 },
+  { id: 'freeFire', label: '自由射击', keys: ['自由射击', '随意开火', '自由开火'], kind: 'combat', pri: 60 },
+  { id: 'fire', label: '开火', keys: ['开火', '射击', '还击', '打'], kind: 'combat', pri: 55 },
+  /* 支援 */
+  { id: 'rescue', label: '救援伤员', keys: ['救伤员', '救人', '去救', '抢救', '救援', '救'], kind: 'support', pri: 68 },
+  { id: 'drag', label: '拖回伤员', keys: ['拖回来', '拖到掩体', '拉回来', '拖走', '拉回'], kind: 'support', pri: 67 },
+  { id: 'grabBox', label: '搬运密码箱', keys: ['拿密码箱', '抢密码箱', '搬箱子', '搬运', '拿物资', '拿箱子'], kind: 'support', pri: 66 },
+  { id: 'heal', label: '治疗', keys: ['治疗', '包扎', '医疗', '止血'], kind: 'support', pri: 63 },
+  { id: 'resupply', label: '给弹药', keys: ['给弹药', '送弹药', '弹药补给', '补弹', '补给'], kind: 'support', pri: 62 },
+  { id: 'setup', label: '架设武器', keys: ['架设', '架机枪', '设置火力点', '布置'], kind: 'support', pri: 44 },
+  /* 状态报告 */
+  { id: 'reportRemain', label: '剩余敌人', keys: ['剩余敌人', '还剩多少敌人', '还有多少敌人', '战果'], kind: 'report', pri: 75 },
+  { id: 'reportContact', label: '发现敌人', keys: ['发现敌人', '报告敌情', '有没有敌人', '敌人在哪'], kind: 'report', pri: 74 },
+  { id: 'reportCas', label: '报告伤亡', keys: ['报告伤亡', '伤亡情况', '谁受伤了', '伤情'], kind: 'report', pri: 73 },
+  { id: 'reportAmmo', label: '报告弹药', keys: ['报告弹药', '还有多少子弹', '弹药情况'], kind: 'report', pri: 72 },
+  { id: 'reportPos', label: '报告位置', keys: ['报告位置', '你的位置', '你在哪', '位置'], kind: 'report', pri: 71 },
+  { id: 'reportAll', label: '报告状态', keys: ['报告状态', '汇报', '报告'], kind: 'report', pri: 70 },
+  { id: 'ready', label: '就位', keys: ['已就位', '就位', '到位'], kind: 'report', pri: 69 },
+];
+
+const CS_ALL = ['全体人员', '所有队员', '所有单位', '全体', '所有人', '全员', '全队', '大家', '全部'];
+const CS_GROUP = [
+  ['反坦克小组', '反坦克组'], ['火力小组', '火力组'], ['支援小组', '支援组'],
+  ['第一组', '1组'], ['第二组', '2组'], ['一组', '1组'], ['二组', '2组'], ['1组', '1组'], ['2组', '2组'],
+  ['火力组', '火力组'], ['反坦克组', '反坦克组'], ['支援组', '支援组'],
+];
+const LOC_KEYS = [
+  ['南侧高地', 'A'], ['高地', 'A'], ['A点', 'A'], ['a点', 'A'], ['A区', 'A'],
+  ['北侧岩石', 'B'], ['岩石', 'B'], ['壕沟', 'B'], ['B点', 'B'], ['b点', 'B'],
+  ['桥梁', 'C'], ['桥', 'C'], ['隘口', 'C'], ['C点', 'C'], ['c点', 'C'], ['撤离点', 'C'],
+  ['油桶', 'D'], ['D点', 'D'], ['d点', 'D'],
+  ['南侧树林', 'E'], ['树林', 'E'], ['密林', 'E'], ['E点', 'E'], ['e点', 'E'],
+  ['东侧入口', 'F'], ['东口', 'F'], ['F点', 'F'],
+  ['西侧出口', 'G'], ['西口', 'G'], ['出口', 'G'], ['G点', 'G'],
+];
+const DIR_KEYS = [['北边', 0], ['北面', 0], ['南边', 180], ['南面', 180], ['东边', 90], ['东面', 90], ['西边', 270], ['西面', 270], ['左翼', 'L'], ['右翼', 'R'], ['左边', 'L'], ['左面', 'L'], ['左侧', 'L'], ['右边', 'R'], ['右面', 'R'], ['右侧', 'R'], ['左前方', 'FL'], ['右前方', 'FR']];
+/* 目标名词 → 目标类型（用于「打 11 点方向机枪手」这类动词与名词被隔开的情况） */
+const TARGET_NOUNS = [
+  ['装甲车', 'apc'], ['运兵车', 'apc'], ['装甲', 'apc'], ['坦克', 'tank'],
+  ['吉普', 'jeep'], ['小车', 'jeep'], ['卡车', 'truck'], ['货车', 'truck'], ['军卡', 'truck'], ['运输车', 'truck'], ['补给车', 'truck'],
+  ['机枪手', 'mg'], ['机枪', 'mg'], ['指挥官', 'officer'], ['军官', 'officer'], ['当官的', 'officer'], ['步兵', 'inf'],
+];
+const TARGET_ACT = { tank: 'atTank', apc: 'atAPC', jeep: 'atJeep', truck: 'atTruck', mg: 'atMG', officer: 'atOfficer', inf: 'atInf' };
+
+/* 中文数字归一 + 去标点 */
+function normalizeOrder(t) {
+  let s = String(t || '').toLowerCase();
+  s = s.replace(/[\s,，。、；;!！?？.．"“”'‘’`~·\-—_（）()\[\]【】]/g, '');
+  s = s.replace(/一/g, '1').replace(/[二两]/g, '2').replace(/三/g, '3');
+  return s;
+}
+const CV_NUM = '0123456789';
+
+/* 字符相似度（最长公共子序列比率） */
+function charSim(a, b) {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const n = a.length, m = b.length;
+  const dp = new Array(m + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    let prev = 0;
+    for (let j = 1; j <= m; j++) {
+      const tmp = dp[j];
+      dp[j] = Math.max(dp[j], dp[j - 1], prev + (a[i - 1] === b[j - 1] ? 1 : 0));
+      prev = tmp;
+    }
+  }
+  return dp[m] * 2 / (n + m);
+}
+
+const Parser = {
+  normalize: normalizeOrder,
+
+  /* 呼号识别：返回最早出现的匹配 */
+  findCallsign(s) {
+    const hits = [];
+    const push = (pos, len, kind, id, label, score) => { if (pos >= 0) hits.push({ pos, len, kind, id, label, score }); };
+    for (const [k, v] of CS_GROUP) { const p = s.indexOf(k); if (p >= 0) push(p, k.length, 'group', v, v + '', 1); }
+    for (const k of CS_ALL) { const p = s.indexOf(k); if (p >= 0) push(p, k.length, 'all', '*', '全体', 1); }
+    for (const role in ROLE_CALL) { const p = s.indexOf(role); if (p >= 0) push(p, role.length, 'role', role, role, 1); }
+    const used = [];
+    for (const m of ROSTER) {
+      let best = null;
+      for (const a of m.aliases) { const p = s.indexOf(a); if (p >= 0 && (!best || a.length > best.len)) best = { pos: p, len: a.length, key: a }; }
+      if (best) { push(best.pos, best.len, 'member', m.id, m.name, 1); used.push(best.pos); }
+    }
+    if (!hits.length) { // 模糊匹配（阿杰尔/阿杰哥 → 阿杰）
+      for (const m of ROSTER) {
+        for (const a of m.aliases) {
+          if (a.length < 2) continue;
+          let bp = -1, bs = 0;
+          for (let i = 0; i + a.length <= s.length; i++) {
+            const seg = s.slice(i, i + a.length);
+            const sc = charSim(a, seg);
+            if (sc > bs) { bs = sc; bp = i; }
+          }
+          if (bs >= 0.72) { push(bp, a.length, 'member', m.id, m.name, bs); break; }
+        }
+      }
+    }
+    if (!hits.length) return null;
+    hits.sort((a, b) => (a.pos - b.pos) || (b.len - a.len) || (b.score - a.score));
+    return hits[0];
+  },
+
+  /* 动作识别：全局最长关键词命中 */
+  findAction(s) {
+    let best = null;
+    for (const a of ACTIONS) {
+      for (const k of a.keys) {
+        const p = s.indexOf(k);
+        if (p < 0) continue;
+        const score = k.length * 100 + a.pri;
+        if (!best || score > best.score) best = { act: a, pos: p, key: k, len: k.length, score };
+      }
+    }
+    return best;
+  },
+
+  findLoc(s) {
+    let best = null;
+    for (const [k, key] of LOC_KEYS) {
+      const p = s.indexOf(k);
+      if (p >= 0 && (!best || k.length > best.len)) best = { key, pos: p, len: k.length, name: POINTS[key].name };
+    }
+    return best;
+  },
+
+  findDir(s) {
+    const m = s.match(/(\d{1,2})点(方向|钟方向|钟)?/);
+    if (m) { const h = parseInt(m[1], 10); if (h >= 1 && h <= 12) return { bearing: (h % 12) * 30, raw: m[0], hour: h }; }
+    for (const [k, v] of DIR_KEYS) { const p = s.indexOf(k); if (p >= 0) return { bearing: v, raw: k }; }
+    return null;
+  },
+
+  /* 目标名词识别（最长匹配） */
+  findTargetNoun(s) {
+    let best = null;
+    for (const [k, v] of TARGET_NOUNS) {
+      if (s.indexOf(k) >= 0 && (!best || k.length > best.len)) best = { type: v, len: k.length };
+    }
+    return best ? best.type : null;
+  },
+
+  /* 找出文中提到的其他队员（用于「小满，救阿杰」的救援目标） */
+  findMentionedIds(s, excludeId) {
+    const out = [];
+    for (const m of ROSTER) {
+      if (m.id === excludeId) continue;
+      for (const a of m.aliases) { if (s.includes(a)) { out.push(m.id); break; } }
+    }
+    return out;
+  },
+
+  findRocket(s) { return null; },
+
+  parse(text, opts) {
+    opts = opts || {};
+    const raw = String(text || '').trim();
+    const s = normalizeOrder(raw);
+    const notes = [];
+    if (!s) return { ok: false, raw, reason: 'empty', confidence: 0 };
+
+    let cs = this.findCallsign(s);
+    let csSpan = cs ? [cs.pos, cs.pos + cs.len] : null;
+    // 动作在排除呼号后的文本里找
+    const sNoCs = cs ? (s.slice(0, csSpan[0]) + '　'.repeat(cs.len) + s.slice(csSpan[1])) : s;
+    let act = this.findAction(s.includes('　') ? s : s);
+    let actNoCs = this.findAction(sNoCs);
+    let actionHit = actNoCs || this.findAction(s);
+    let scan = sNoCs;
+
+    const loc = this.findLoc(scan);
+    const dir = this.findDir(scan);
+
+    if (!actionHit) {
+      return { ok: false, raw, callsign: cs, loc, dir, confidence: 0.1, reason: 'no-action', notes: ['未识别到动作关键词'] };
+    }
+    let A = actionHit.act;
+    /* 目标名词补正：「打 11 点方向机枪手」→ 升级为「打机枪手」 */
+    if (A.kind === 'combat' || A.kind === 'atk') {
+      const tn = this.findTargetNoun(scan);
+      if (tn && tn !== A.target) {
+        const up = ACTIONS.find(a => a.id === TARGET_ACT[tn]);
+        if (up) { A = up; actionHit = { act: up, key: '名词补正', len: 3, score: actionHit.score }; }
+      }
+    }
+
+    /* 置信度评估 */
+    let conf = 0.30;
+    conf += actionHit.key.length >= 3 ? 0.38 : actionHit.key.length === 2 ? 0.34 : 0.14;
+    if (cs) conf += cs.kind === 'all' ? 0.06 : 0.13; else { conf += 0.02; notes.push('未指定呼号 → 默认最近队友'); }
+    if (A.needLoc) { if (loc) conf += 0.14; else { conf -= 0.30; notes.push('缺少地点（如「撤退到 C 点」）'); } }
+    else if (loc) conf += 0.10;
+    if (s.length >= 4) conf += 0.08;
+    if (s.length >= 7) conf += 0.04;
+    if (act && act.act.id !== A.id) { conf -= 0.16; notes.push('存在歧义：也可能理解为「' + act.act.label + '」'); }
+    const noise = clamp(opts.noise || 0, 0, 1);
+    if (noise > 0.02) { conf -= noise * 0.35; notes.push('战场噪声降低识别率 -' + Math.round(noise * 35) + '%'); }
+    if (opts.asr != null && opts.asr > 0) conf = lerp(conf, opts.asr, 0.55);
+    if (opts.typed) conf = Math.max(conf, 0.93);
+    conf = clamp(conf, 0, 1);
+
+    const mentioned = this.findMentionedIds(scan, cs && cs.kind === 'member' ? cs.id : null);
+    const cmd = {
+      ok: conf >= 0.70,
+      raw, confidence: +conf.toFixed(2), notes,
+      callsign: cs ? { kind: cs.kind, id: cs.id, label: cs.label } : { kind: 'member', id: 'auto', label: '默认（最近队友）' },
+      action: { id: A.id, label: A.label, kind: A.kind, pri: A.pri, needLoc: !!A.needLoc, target: A.target || null },
+      loc: loc ? { key: loc.key, name: loc.name, x: POINTS[loc.key].x, y: POINTS[loc.key].y } : null,
+      dir, mentioned,
+      source: opts.source || 'voice',
+      marker: opts.marker || null,
+      noise,
+    };
+    if (!cmd.ok) notes.push('置信度 ' + Math.round(conf * 100) + '% < 70%，不予执行');
+    return cmd;
+  },
+
+  /* 低置信度候选（HUD 弹候选，按 1/2/3 确认） */
+  candidates(s, cmd) {
+    const out = [];
+    const sig = c => (c.callsign ? c.callsign.kind + ':' + c.callsign.id : '-') + '|' + (c.action ? c.action.id : '-') + '|' + (c.loc ? c.loc.key : '-');
+    const add = c => { if (c && c.action && !out.some(o => sig(o) === sig(c))) out.push(c); };
+
+    if (cmd && cmd.action) add(cmd);
+    // 变体 1：同一动作 → 全体
+    if (cmd && cmd.action && (!cmd.callsign || cmd.callsign.kind !== 'all')) {
+      add(Object.assign({}, cmd, { callsign: { kind: 'all', id: '*', label: '全体' }, confidence: 0.72 }));
+    }
+    // 变体 2：相似动作
+    const norm = normalizeOrder(s);
+    let alt = null, altScore = 0;
+    for (const a of ACTIONS) {
+      if (cmd && cmd.action && a.id === cmd.action.id) continue;
+      for (const k of a.keys) {
+        const sc = charSim(k, norm.slice(0, Math.max(k.length, 3))) * 0.6 + (norm.includes(k) ? 0.5 : 0);
+        if (sc > altScore) { altScore = sc; alt = a; }
+      }
+    }
+    if (alt && altScore > 0.3) {
+      add(Object.assign({}, cmd || {}, {
+        callsign: cmd && cmd.callsign ? cmd.callsign : { kind: 'all', id: '*', label: '全体' },
+        action: { id: alt.id, label: alt.label, kind: alt.kind, pri: alt.pri, needLoc: !!alt.needLoc, target: alt.target || null },
+        confidence: 0.70,
+      }));
+    }
+    // 变体 3：同动作 → 某个具体队员（按相似度）
+    if (out.length < 3) {
+      let bm = null, bs = 0;
+      for (const m of ROSTER) { for (const a of m.aliases) { const sc = charSim(a, norm); if (sc > bs) { bs = sc; bm = m; } } }
+      if (bm && (!cmd || !cmd.callsign || cmd.callsign.id !== bm.id)) {
+        add(Object.assign({}, cmd || {}, {
+          callsign: { kind: 'member', id: bm.id, label: bm.name },
+          action: cmd && cmd.action ? cmd.action : { id: 'advance', label: '前进', kind: 'move', pri: 48 },
+          confidence: 0.70,
+        }));
+      }
+    }
+    return out.slice(0, 3);
+  },
+};
+
+/* ------------------------------------------------------------------ 回复 */
+const REPLIES = {
+  ok: ['收到', '明白', '执行', '收到，执行'],
+  delay: ['被压制，等一下', '等一下，我在换弹', '稍等，压得抬不起头'],
+  refuse: ['不行，太危险', '没弹药了', '不行，我这儿被压住了'],
+  panic: ['我不行了！', '顶不住了，跑吧！', '别打了，太多了！'],
+  down: ['我中弹了！', '需要医疗！', '我倒了……'],
+};
+
+/* =========================================================================
+   二、世界状态 / 单位 / 指令下发器
+   ========================================================================= */
+const World = {
+  t: 0, phase: 'INTEL', phaseName: '情报', speed: 1, paused: false, started: false, over: false,
+  props: [], units: [], vehicles: [], projectiles: [], fx: [], mines: [], decals: [],
+  player: null, marker: null, evac: EVAC_DEFAULT, bridgeAlive: true, box: null,
+  triggered: false, triggerT: 0, reinforceDone: false, reinforceT: CFG.reinforceAt,
+  weather: 'sunny', noise: 0, noiseSrc: [], deployDone: false,
+  convoyStarted: false, convoyEscaped: false, officerSpawned: false,
+  subs: [], lastCmd: null, pending: [], logs: [],
+  stats: {
+    enemyDead: 0, apcKilled: 0, tankKilled: false, boxTaken: false, boxEvacuated: false, evacCount: 0,
+    cmdIssued: 0, cmdExec: 0, cmdRefused: 0, reinforceTriggered: false, officerKilled: false,
+    minesUsed: 0, bridgeBlown: false, civilians: 0, shotFired: false, firstShotByPlayer: false,
+  },
+  cam: { x: 0, y: 0 },
+  timeScale: 1,
+};
+
+function allies() { return World.units.filter(u => u.team === 'ally' && !u.dead); }
+function aliveAllies() { return World.units.filter(u => u.team === 'ally' && !u.dead && !u.downed); }
+function combatAllies() { return World.units.filter(u => u.team === 'ally' && !u.dead && !u.downed && !u.isPlayer); }
+function enemies() { return World.units.filter(u => u.team === 'enemy' && !u.dead); }
+function enemyVehicles() { return World.vehicles.filter(v => v.team === 'enemy' && !v.destroyed); }
+function downedAllies() { return World.units.filter(u => u.team === 'ally' && u.downed && !u.dead); }
+
+function say(who, text, cls) {
+  World.subs.push({ who, text, cls: cls || '', t: 6.5 });
+  while (World.subs.length > 7) World.subs.shift();
+  renderSubs();
+}
+function log(txt, cls) { World.logs.push({ t: World.t, txt, cls: cls || '' }); }
+function fx(o) { o.t = 0; o.life = o.life || 0.5; World.fx.push(o); return o; }
+function decal(x, y, r, c) { World.decals.push({ x, y, r, c, t: 0 }); if (World.decals.length > 260) World.decals.shift(); }
+
+/* ------------------------------------------------------------ 单位工厂 */
+function makeUnit(def, x, y, team, isPlayer) {
+  const w = WEAPONS[def.weapon] || WEAPONS.rifle;
+  return {
+    id: def.id, name: def.name, role: def.role || '步枪手', group: def.group || '', isPlayer: !!isPlayer, team,
+    x, y, vx: 0, vy: 0, facing: 0, dest: null, radius: 5.2,
+    hp: 100, maxHp: 100, morale: 78, suppression: 0, armor: 0,
+    weaponKey: def.weapon, wpn: w, ammo: w.ammo, magAmmo: w.mag, reloadT: 0, fireCd: 0,
+    burstLeft: 0, burstCd: 0, aimT: 0, hitFlash: 0,
+    rockets: def.weapon === 'at' ? ROCKET.ammo : 0, grenades: (def.weapon === 'mg' ? 1 : 2), smokes: def.weapon === 'rifle' ? 1 : 0,
+    hasCharge: def.weapon === 'demo' || def.weapon === 'at',
+    state: team === 'ally' ? '部署' : '警戒', stateT: 0,
+    target: null, preferType: null, focusTarget: null, fireMode: 'free', holdPosition: false,
+    moveGoal: null, coverPos: null, coverT: 0, order: null, orderT: 0, pendingOrder: null, obeyBoost: 0, obeyBase: 0.8,
+    formationFollow: false, followTarget: null,
+    downed: false, dead: false, downTimer: 0, reviveT: 0, dragging: null, draggedBy: null,
+    kills: 0, shots: 0, hits: 0, speakCd: 0, reportCd: 0, aiT: 0, pickT: 0, thinkT: 0,
+    flankRole: null, flankPt: null, aiState: 'idle', mount: null, officer: !!def.officer, mg: !!def.mg,
+    pushT: 0, holdT: 0, pushPt: null,
+    suppressFireT: 0, rescueTarget: null, carryBox: false, secReport: 0, lastHurtBy: null,
+    stun: 0, wobble: RNG() * 6.28, patrol: null,
+  };
+}
+
+function initWorld(seed) {
+  RNG = mulberry32(seed >>> 0);
+  World.props = BASE_PROPS.map(p => Object.assign({}, p));
+  World.units = []; World.vehicles = []; World.projectiles = []; World.fx = []; World.decals = [];
+  World.mines = []; World.subs = []; World.logs = [];
+  World.t = 0; World.phase = 'INTEL'; World.over = false; World.triggered = false; World.triggerT = 0;
+  World.reinforceDone = false; World.reinforceT = CFG.reinforceAt; World.convoyStarted = false;
+  World.convoyEscaped = false; World.bridgeAlive = true; World.evac = Object.assign({}, EVAC_DEFAULT);
+  World.evacArmed = false;      // 尚未进入撤离阶段（拿到密码箱 / 收到撤退撤离命令后才置位）
+  World.marker = null; World.deployDone = false; World.noise = 0; World.noiseSrc = [];
+  /* 运行态清零：这些字段都是在战局中途被写入的，initWorld 早期版本漏掉了它们，
+     结果「重玩」会把上一局的残留带进新一局 —— 最典型的是 World.barrage：
+     只要上一局打到过增援阶段，新局从 t=0 起就会被火箭炮持续覆盖，
+     开局还没进入潜伏就先减员（表现为「双方都没开枪却有人在掉血」）。 */
+  World.barrage = false; World.barrageCd = 0; World.pendingShells = [];
+  World.box = null; World.officerVeh = null; World.officerSpawned = false;
+  World.handover = null; World.convoyProgress = 0; World.mineWarned = false;
+  World.noiseT = 0; World.alertT = 0; World.rangedSel = null;
+  World.overKind = null; World.overText = null; World.objState = [];
+  World.phaseName = '情报'; World.seed = seed >>> 0;
+  World.lastCmd = null; World.stats = {
+    enemyDead: 0, apcKilled: 0, tankKilled: false, boxTaken: false, boxEvacuated: false, evacCount: 0,
+    cmdIssued: 0, cmdExec: 0, cmdRefused: 0, reinforceTriggered: false, officerKilled: false,
+    minesUsed: 0, bridgeBlown: false, shotFired: false, firstShotByPlayer: false,
+  };
+
+  /* 天气变体（重玩性） */
+  const wr = RNG();
+  World.weather = wr < 0.45 ? 'sunny' : wr < 0.8 ? 'rain' : 'night';
+
+  /* 玩家 + 10 名队友 */
+  const pd = RECOMMEND.player;
+  World.player = makeUnit({ id: 'player', name: '你（队长）', role: '队长', group: '1组', weapon: 'rifle' }, pd.x, pd.y, 'ally', true);
+  World.player.facing = -Math.PI / 2;
+  World.units.push(World.player);
+  for (const r of ROSTER) {
+    const p = RECOMMEND[r.id] || { x: 880, y: 900 };
+    const u = makeUnit(r, p.x + rr(-8, 8), p.y + rr(-8, 8), 'ally');
+    u.homePos = { x: p.x, y: p.y };
+    World.units.push(u);
+  }
+
+  /* 部署区内的地雷（爆破手在战前埋设，触发后近炸引信生效）：头车雷在伏击圈内，尾车雷守在通往桥的方向 */
+  const mineSpots = [
+    { x: 1120, y: 662 }, { x: 1040, y: 672 },   // 东侧头车雷（伏击圈内）
+    { x: 620, y: 655 }, { x: 540, y: 658 },     // 西侧尾车雷（堵住西逃方向）
+  ];
+  const east = pick([0, 1]), west = pick([2, 3]);
+  World.mines.push({ x: mineSpots[east].x, y: mineSpots[east].y, armed: false, team: 'ally', used: false, kind: 'east' });
+  World.mines.push({ x: mineSpots[west].x, y: mineSpots[west].y, armed: false, team: 'ally', used: false, kind: 'west' });
+  World.mineEast = World.mines[0]; World.mineWest = World.mines[1];
+
+  /* 密码箱位置随机（卡车 / 装甲车 / 军官身上） */
+  World.boxWhere = RNG() < 0.62 ? 'truck' : RNG() < 0.6 ? 'apc' : 'officer';
+  /* 车队顺序随机（坦克可能在前、中、后） */
+  const orderRoll = RNG();
+  World.convoyOrder = orderRoll < 0.62 ? ['jeep', 'apc', 'tank', 'truck', 'apc', 'jeep']
+    : orderRoll < 0.82 ? ['jeep', 'tank', 'apc', 'truck', 'apc', 'jeep']
+      : ['apc', 'jeep', 'apc', 'tank', 'truck', 'jeep'];
+  World.infantryTotal = ri(10, 16);
+  World.reinforceT = CFG.reinforceAt + Math.round(rr(-30, 30));
+
+  buildConvoy();
+  updateEvacMarker();
+}
+
+/* ------------------------------------------------------------ 车队生成 */
+function buildConvoy() {
+  World.vehicles.length = 0;
+  const names = { jeep: '吉普', apc: '装甲车', tank: '坦克', truck: '卡车' };
+  let idx = { jeep: 0, apc: 0, tank: 0, truck: 0 };
+  const total = World.convoyOrder.length;
+  World.convoyOrder.forEach((type, i) => {
+    idx[type]++;
+    const line = i === 0 ? -1 : i === total - 1 ? 1 : 0;   // -1 先头, 1 后卫
+    const v = {
+      id: type + idx[type], type, name: names[type] + idx[type], team: 'enemy',
+      x: 2320 + i * 132, y: 700, angle: Math.PI, speed: 0, baseSpeed: VEHICLES[type].speed * 0.30,
+      dist: -i * 132,
+      hp: VEHICLES[type].hp, maxHp: VEHICLES[type].hp, spec: VEHICLES[type],
+      len: VEHICLES[type].len, wid: VEHICLES[type].wid, armor: VEHICLES[type].armor,
+      destroyed: false, burning: 0, turret: Math.PI, fireCd: rr(2, 6), wpnCd: rr(0.5, 2),
+      troops: [], capacity: VEHICLES[type].cap, dismountT: -1, dismounted: false,
+      state: 'drive', target: null, line, speedMul: 1, wayI: 0, hasBox: false, hitFlash: 0,
+      stopT: 0, mgHeat: 0, report: 0,
+    };
+    if (World.boxWhere === 'truck' && type === 'truck') v.hasBox = true;
+    if (World.boxWhere === 'apc' && type === 'apc' && !World.vehicles.some(x => x.hasBox)) v.hasBox = true;
+    if (type === 'apc' || type === 'truck' || type === 'jeep') {
+      const n = type === 'apc' ? 6 : type === 'truck' ? 6 : 2;
+      v.troopPlan = Math.min(n, Math.max(0, World.infantryTotal - World.vehicles.reduce((s, x) => s + (x.troopPlan || 0), 0)));
+      if (v.troopPlan < 0) v.troopPlan = 0;
+    } else v.troopPlan = 0;
+    World.vehicles.push(v);
+  });
+  // 卡车上放密码箱（优先）
+  if (World.boxWhere !== 'officer') {
+    const wantTruck = World.boxWhere === 'truck';
+    let found = World.vehicles.find(v => wantTruck ? v.type === 'truck' : v.type === 'apc');
+    for (const v of World.vehicles) v.hasBox = false;
+    if (found) found.hasBox = true;
+  }
+  // 军官（击毙车队指挥官 = 隐藏目标）
+  const cands = World.vehicles.filter(v => v.troopPlan > 0);
+  if (cands.length) World.officerVeh = pick(cands); else World.officerVeh = World.vehicles[0];
+}
+
+/* 车辆在路径上的位置（沿 CONVOY_WAY 前进，前方车先走） */
+function convoyPos(v, progress) {
+  // progress: 车队头部沿路径已行进的距离
+  let d = progress - (World.convoyOrder.length - 1 - World.vehicles.indexOf(v)) * 132;
+  if (d < 0) d = 0;
+  return wayPointAt(d);
+}
+function wayPointAt(d) {
+  let acc = 0;
+  for (let i = 0; i < CONVOY_WAY.length - 1; i++) {
+    const a = CONVOY_WAY[i], b = CONVOY_WAY[i + 1];
+    const seg = dist(a.x, a.y, b.x, b.y);
+    if (acc + seg >= d) {
+      const t = seg > 0 ? (d - acc) / seg : 0;
+      return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), a: Math.atan2(b.y - a.y, b.x - a.x) };
+    }
+    acc += seg;
+  }
+  const last = CONVOY_WAY[CONVOY_WAY.length - 1];
+  return { x: last.x, y: last.y, a: Math.PI };
+}
+
+function updateEvacMarker() {
+  const p = World.bridgeAlive ? EVAC_DEFAULT : EVAC_ALT;
+  World.evac = { key: p.key, x: p.x, y: p.y, name: p.name };
+}
+
+/* --------------------------------------------------------------- 地形 */
+function inRiver(x, y) { return x > CFG.riverX1 && x < CFG.riverX2; }
+function onBridge(x, y) { return x > CFG.riverX1 - 10 && x < CFG.riverX2 + 10 && y > CFG.bridgeY1 && y < CFG.bridgeY2; }
+function passable(x, y, isVehicle) {
+  if (x < 6 || y < 6 || x > CFG.W - 6 || y > CFG.H - 6) return false;
+  if (isVehicle) { if (inRiver(x, y) && !onBridge(x, y)) return false; if (!World.bridgeAlive && inRiver(x, y)) return false; }
+  return true;
+}
+function vehicleBlocked(x, y, r, v) {
+  const dx = x - v.x, dy = y - v.y;
+  const c = Math.cos(-v.angle), s = Math.sin(-v.angle);
+  const lx = dx * c - dy * s, ly = dx * s + dy * c;
+  return Math.abs(lx) < v.len / 2 + r * 0.5 && Math.abs(ly) < v.wid / 2 + r * 0.5;
+}
+function propBlocked(x, y, r) {
+  for (const p of World.props) {
+    if (p.destroyed || !p.hard) continue;
+    if (dist2(x, y, p.x, p.y) < (p.r + r) * (p.r + r)) return true;
+  }
+  for (const v of World.vehicles) {
+    if (v.destroyed) continue;
+    if (vehicleBlocked(x, y, r, v)) return true;
+  }
+  return false;
+}
+
+/* 掩体评分（文档：防护+隐蔽+射界+撤退路线-距离-暴露时间） */
+function coverScore(x, y, tx, ty) {
+  let s = 0;
+  for (const p of World.props) {
+    if (p.destroyed) continue;
+    const d = dist(x, y, p.x, p.y);
+    const R = p.r + 66;
+    if (d > R) continue;
+    let w = 1 - d / R;
+    if (p.type === 'trench') { w *= 1.5; }
+    else if (p.hard) {
+      const vx = p.x - x, vy = p.y - y, L = Math.hypot(vx, vy) || 1;
+      const txn = tx - x, tyn = ty - y, L2 = Math.hypot(txn, tyn) || 1;
+      const dot = (vx / L) * (txn / L2) + (vy / L) * (tyn / L2);
+      w *= dot > 0.15 ? 1.5 : 0.3;
+    } else w *= 0.55;
+    s += w * p.cover;
+  }
+  // 撤退路线：后方 60px 内没有障碍加分
+  if (!propBlocked(x + (x - tx) * 0.25, y + (y - ty) * 0.25, 6)) s += 0.25;
+  /* 射界（文档评分项之一，早期漏了）：候选位置朝威胁方向必须「看得见」。
+     没有这一项时，AI 会挑树林深处的好掩体 —— 防护满分、射界为零，
+     于是「全体，打卡车」之后大半队员 canSee() 为假、target 为空，
+     站着不动一枪不放（实测卡车 142 血卡了整整 3 分钟没人打）。 */
+  if (losSight(x, y, tx, ty)) s -= 1.2;
+  const th = nearestEnemyAt(x, y, 'ally');
+  if (th) s -= clamp((260 - dist(x, y, th.x, th.y)) / 400, 0, 0.5);
+  return s;
+}
+
+function findCover(fromX, fromY, tx, ty, maxDist) {
+  maxDist = maxDist || 80;   // 10 米
+  let best = null, bs = -1e9;
+  for (let ri2 = 1; ri2 <= 3; ri2++) {
+    const rad = maxDist * ri2 / 3;
+    for (let i = 0; i < 16; i++) {
+      const a = i * Math.PI / 8 + (RNG() - 0.5) * 0.3;
+      const x = fromX + Math.cos(a) * rad, y = fromY + Math.sin(a) * rad;
+      if (!passable(x, y) || propBlocked(x, y, 6)) continue;
+      const sc = coverScore(x, y, tx, ty) - rad / maxDist * 0.35;
+      if (sc > bs) { bs = sc; best = { x, y }; }
+    }
+  }
+  if (!best) return null;
+  return best;
+}
+
+/* ----------------------------------------------------------- 目标检索 */
+function nearestEnemyAt(x, y, team, filter) {
+  let best = null, bd = 1e9;
+  for (const u of World.units) {
+    if (u.dead || u.downed || u.team === team) continue;
+    if (filter && !filter(u)) continue;
+    const d = dist2(x, y, u.x, u.y);
+    if (d < bd) { bd = d; best = u; }
+  }
+  for (const v of World.vehicles) {
+    if (v.destroyed || v.team === team) continue;
+    if (filter) { if (!filter(v)) continue; } else continue;
+    const d = dist2(x, y, v.x, v.y);
+    if (d < bd) { bd = d; best = v; }
+  }
+  return best;
+}
+function canSee(u, tgt) {
+  const r = visRange(u);
+  const d = dist(u.x, u.y, tgt.x, tgt.y);
+  if (d > r) return false;
+  if (d > 150) {
+    if (losSight(u.x, u.y, tgt.x, tgt.y)) return false;   // 远距离：树冠也能遮断视线
+  } else if (losFire(u.x, u.y, tgt.x, tgt.y)) return false;
+  return true;
+}
+/* 视野距离。早期我方固定 680，比步枪射程 720 还短 —— 「看得见」比「打得到」还近，
+   于是队员经常对着看不见的敌人干站着；狙击手拿着 1300 射程的枪却只有 680 的视野。
+   这里按武器给视野：主力步枪手 780（够覆盖步枪射程），机枪手 840，狙击手 1160。 */
+function visRange(u) {
+  let r = u.team === 'ally' ? 780 : 620;
+  if (u.weaponKey === 'sniper') r = 1160;
+  else if (u.weaponKey === 'mg') r = 840;
+  if (World.weather === 'rain') r *= 0.82;
+  if (World.weather === 'night') r *= 0.62;
+  if (u.dead || u.downed) r = 0;
+  return r;
+}
+function targetPoint(u) { return { x: u.x, y: u.y }; }
+
+/* --------------------------------------------------------------- 伤害 */
+/* 掩体防护系数 0~1：贴住掩体只露半个身子。
+   数值直接取物件自己的 cover 权重（岩石 .95 / 石墙 1.0 / 壕沟 .85 / 油桶 .5 / 树 .45 / 灌木 .35），
+   与 coverScore 评分用的是同一套权重 —— 早期这里只认 hard 物件，
+   于是「树林/灌木」在评分里是合格掩体、到了减伤阶段却等于零，
+   AI 会照着评分把阿兰派进 E 点树林，然后站在那里毫无防护地挨完整场。 */
+function coverProtect(u) {
+  if (u.dead || u.downed) return 0;
+  let best = 0;
+  for (const p of World.props) {
+    if (p.destroyed) continue;
+    const reach = p.hard ? 38 : 26;            // 软掩体（树/灌木）要贴得更近才有用
+    const d = dist(u.x, u.y, p.x, p.y);
+    if (d >= p.r + reach) continue;
+    const near = 1 - Math.max(0, d - p.r) / reach;
+    const w = p.cover === undefined ? (p.hard ? 0.9 : 0.4) : p.cover;
+    best = Math.max(best, near * w);
+  }
+  if (u.state === '隐蔽' || u.state === '待命') best = Math.max(best, 0.4);
+  return clamp(best, 0, 1);
+}
+function damageUnit(u, dmg, src, kind) {
+  if (u.dead || u.downed) return;
+  /* 依托掩体最多减伤 70%：伏击方在工事里、进攻方在开阔地推进，
+     这个差距是文档「掩体评分」体系成立的前提（否则 AI 抢掩体毫无意义）。 */
+  dmg *= 1 - coverProtect(u) * 0.70;
+  u.hp -= dmg;
+  u.hitFlash = 0.25;
+  u.lastHurtBy = src || null;
+  if (src && src.team && src.team !== u.team) u.lastHurtT = World.t;
+  if (u.team === 'ally') {
+    u.morale = clamp(u.morale - dmg * 0.12, 0, 100);
+    u.suppression = clamp(u.suppression + dmg * 0.9, 0, 100);
+  }
+  decal(u.x + rr(-3, 3), u.y + rr(-3, 3), rr(2, 3.5), 'rgba(140,20,20,.5)');
+  if (u.hp <= 0) {
+    if (u.team === 'ally') {
+      if (u.isPlayer) { downPlayer(u); }
+      else if (RNG() < 0.72) { u.downed = true; u.downTimer = 45; u.state = '失能'; u.hp = 0; say(u.name, pick(REPLIES.down), 'no'); }
+      else killUnit(u, src);
+    } else {
+      killUnit(u, src);
+    }
+  }
+}
+function killUnit(u, src) {
+  if (u.dead) return;
+  u.dead = true; u.state = '阵亡';
+  if (u.carryBox) { u.carryBox = false; if (World.box) { World.box.taken = false; World.box.carrier = null; World.box.x = u.x; World.box.y = u.y; say('全体', '密码箱掉了！谁去捡！', 'no'); } }
+  if (u.team === 'enemy') {
+    World.stats.enemyDead++;
+    if (src && src.team === 'ally') { src.kills++; if (!src.isPlayer) src.morale = clamp(src.morale + 4, 0, 100); }
+    if (u.officer) {
+      World.stats.officerKilled = true; say('观察员', '敌军指挥官被击毙！', 'sys');
+      /* 文档：密码箱有 38% 概率由指挥官随身携带 —— 击毙他才会掉箱。
+         早期这里只记了一条战果，箱子在本局压根不存在，
+         于是「密码箱在军官身上」的那 38% 局面里主目标永远无法完成（实测该局面 0 胜）。 */
+      if (World.boxWhere === 'officer' && !World.box) dropBox(u.x, u.y);
+    }
+    decal(u.x, u.y, 6, 'rgba(120,16,16,.45)');
+  } else {
+    World.stats.allyDead = (World.stats.allyDead || 0) + 1;
+    for (const a of allies()) if (a !== u) a.morale = clamp(a.morale - 6, 0, 100);
+    say('全体', u.name + '阵亡！', 'no');
+    onAllyLost();
+  }
+}
+function downPlayer(u) {
+  u.downed = true; u.hp = 0; u.state = '失能'; u.downTimer = 40;
+  say('你', '我中弹了——需要医疗！', 'no');
+  toast('你被击倒！副队长接管指挥');
+  handover();
+}
+function handover() {
+  if (World.handover) return;
+  const dep = World.units.find(x => x.team === 'ally' && ROSTER.find(r => r.id === x.id && r.deputy) && !x.dead && !x.downed)
+    || World.units.find(x => x.team === 'ally' && ROSTER.find(r => r.id === x.id && r.leader) && !x.dead && !x.downed);
+  if (dep) { World.handover = dep; say('全体', dep.name + '：我接管指挥，全体听我口令！', 'sys'); }
+}
+function onAllyLost() {
+  const al = allies().filter(u => !u.downed);
+  if (al.length === 0) endGame('全灭', '小队全灭，伏击失败。');
+}
+
+function damageVehicle(v, dmg, kind, byUnit) {
+  if (v.destroyed) return;
+  const pen = kind === 'bullet' ? v.armor : kind === 'rocket' ? 0.95 : kind === 'shell' ? 1.1 : kind === 'mine' ? 1.3 : 1;
+  v.hp -= dmg * pen;
+  v.hitFlash = 0.25;
+  if (kind === 'rocket' || kind === 'mine') say('全体', '好！命中' + v.name + '！', 'ok');
+  if (v.hp <= 0) destroyVehicle(v, byUnit);
+}
+function destroyVehicle(v, byUnit) {
+  if (v.destroyed) return;
+  v.destroyed = true; v.burning = 30; v.hp = 0;
+  explosion(v.x, v.y, v.len * 0.9, v.type === 'tank' ? 160 : 90, 'enemy', 'vehicle');
+  decal(v.x, v.y, v.len * 0.6, 'rgba(30,26,22,.55)');
+  if (byUnit && byUnit.team === 'ally') { byUnit.kills++; }
+  if (v.type === 'tank') {
+    World.stats.tankKilled = true;
+    say('全体', '坦克被摧毁！', 'ok'); toast('坦克已摧毁');
+    for (const a of allies()) a.morale = clamp(a.morale + 12, 0, 100);
+    for (const e of enemies()) e.morale -= 12;
+  } else if (v.type === 'apc') { World.stats.apcKilled++; say('全体', '装甲车瘫痪！', 'ok'); }
+  if (v.hasBox) dropBox(v.x, v.y);
+  // 车上未下车的步兵随之阵亡
+  for (const t of v.troops) if (!t.dead && t.mount === v) { t.mount = null; damageUnit(t, 90, byUnit, 'splash'); }
+  for (const a of allies()) a.morale = clamp(a.morale + 3, 0, 100);
+}
+function dropBox(x, y) {
+  World.box = { x, y, taken: false, carrier: null, t: 0 };
+  say('全体', '密码箱掉出来了，去拿！', 'sys');
+  /* 自动指派一个人去取。早期这里只把箱子放到地上就算完事，
+     而「搬密码箱」这条命令只有当箱子已经掉出来时才会真正生效（见 applyOrder）——
+     玩家通常是在车还没打爆时就下令，于是箱子一落地就没人管，主目标直接判死。 */
+  const pool = allies().filter(u => !u.dead && !u.downed);
+  if (!pool.length) return;
+  /* 挑人：距离越近越好，但被火力压制的人要打折（别让志愿者顶着机枪去送死）；
+     支援组的铁头按文档是首选，只要他不是远得离谱。 */
+  const cost = u => dist(u.x, u.y, x, y) + u.suppression * 4;
+  pool.sort((p, q) => cost(p) - cost(q));
+  const support = pool.find(u => u.role === '弹药/支援');
+  const pick = (support && cost(support) <= cost(pool[0]) * 1.6) ? support : pool[0];
+  pick.boxTask = true; pick.moveGoal = { x, y };
+  say(pick.name, '我去拿密码箱！', 'ok');
+}
+/* vehMul：爆炸对车辆的伤害系数（默认 0.5，用于手雷/炮击这类通用爆炸）
+   vehKind：传给 damageVehicle 的弹药种类，决定穿甲系数（火箭弹是 0.95，炮弹 1.1…）
+   早期这里写死 damageVehicle(v, dmg * 0.5, 'shell')，于是：
+     1) 火箭弹的 dmgVeh(300) 被再砍一半 → 单发只有 150；
+     2) kind 恒为 'shell'，ROCKET 应有的 0.95 穿甲系数永远不生效。
+   结果 950 HP 的坦克即使 6 发火箭全部命中（6×150×1.1=990）也几乎打不掉 —— 主目标实质不可达。 */
+function explosion(x, y, r, dmg, team, kind, vehMul, vehKind) {
+  fx({ type: 'boom', x, y, r, life: 0.55 });
+  decal(x, y, r * 0.5, 'rgba(24,20,16,.5)');
+  World.noise = clamp(World.noise + 0.45, 0, 1);
+  World.noiseT = 0.9;
+  for (const u of World.units) {
+    if (u.dead || u.downed) continue;
+    if (u.team === team && kind !== 'vehicle') continue;
+    const d = dist(x, y, u.x, u.y);
+    if (d < r) damageUnit(u, dmg * (1 - d / r * 0.6), null, 'splash');
+    else if (d < r * 2.1) u.suppression = clamp(u.suppression + 34 * (1 - d / (r * 2.1)), 0, 100);
+  }
+  const vm = vehMul === undefined ? 0.5 : vehMul;
+  const vk = vehKind || kind;
+  for (const v of World.vehicles) {
+    if (v.destroyed || v.team === team) continue;
+    const d = dist(x, y, v.x, v.y);
+    if (d < r * 1.1) damageVehicle(v, dmg * vm * (1 - d / (r * 1.1)), vk, null);
+  }
+  for (const p of World.props) {
+    if (p.destroyed || !p.explosive) continue;
+    if (dist(x, y, p.x, p.y) < r + 8) { p.destroyed = true; chainBarrel(p); }
+  }
+}
+let armMines = false;
+function chainBarrel(p) {
+  explosion(p.x, p.y, 78, 85, null, 'barrel');
+}
+
+/* =========================================================================
+   三、指令下发（呼号 → 队员；服从度 → 立即/延迟/拒绝）
+   ========================================================================= */
+function calcObey(u, cmd) {
+  let o = u.obeyBase + (u.morale - 55) / 220;
+  const th = nearestEnemyAt(u.x, u.y, 'ally', x => !x.dead);
+  const d = th ? dist(u.x, u.y, th.x, th.y) : 9999;
+  let danger = 0;
+  if (d < 220) danger += 0.09;
+  if (d < 110) danger += 0.13;
+  if (u.suppression > 55) danger += 0.17;
+  if (u.hp < 45) danger += 0.10;
+  const id = cmd.action.id;
+  if (id === 'takeCover' || id === 'ceasefire' || id === 'retreat' || id === 'retreatTo' || id === 'evac') danger *= 0.3;
+  const supPen = (u.suppression / 100) * 0.34;
+  o = o - danger - supPen + (u.obeyBoost || 0);
+  if (u.role === '医疗兵' && (id === 'rescue' || id === 'heal' || id === 'drag')) o += 0.30;
+  if (u.role === '反坦克手' && (id === 'atTank' || id === 'atAPC' || id === 'rocket')) o += 0.25;
+  if (u.group === '火力组' && (id === 'fire' || id === 'suppress' || id === 'focusFire')) o += 0.18;
+  if (u.group === '支援组' && id === 'resupply') o += 0.3;
+  if (u.role === '爆破手' && (id === 'detonate' || id === 'blowBridge')) o += 0.35;
+  if (u.state === '恐慌') o -= 0.35;
+  if (u.downed || u.dead) o = 0;
+  return clamp(o, 0, 1);
+}
+
+function resolveTargets(cmd) {
+  const cs = cmd.callsign;
+  const out = [];
+  const add = id => { const u = World.units.find(x => x.id === id && x.team === 'ally'); if (u) out.push(u); };
+  if (!cs) { const a = nearestAllyTo(World.player, cmd); if (a) out.push(a); return out; }
+  if (cs.kind === 'all') { for (const u of World.units) if (u.team === 'ally') out.push(u); }
+  else if (cs.kind === 'group') { for (const id of (GROUPS[cs.id] || [])) add(id); }
+  else if (cs.kind === 'role') { for (const id of (ROLE_CALL[cs.id] || [])) add(id); }
+  else if (cs.kind === 'member' && cs.id !== 'auto') add(cs.id);
+  else { const a = nearestAllyTo(World.player, cmd); if (a) out.push(a); }
+  return out.filter(u => u && !u.dead);
+}
+function nearestAllyTo(p, cmd) {
+  let best = null, bd = 1e9;
+  for (const u of World.units) {
+    if (u.team !== 'ally' || u.dead || u.downed || u === p) continue;
+    const d = dist2(u.x, u.y, p.x, p.y);
+    if (d < bd) { bd = d; best = u; }
+  }
+  return best;
+}
+
+/* 目标检索：按「打 X」的类型与方向修饰 */
+function pickTargetByType(u, type, cmd) {
+  const pt = { x: u.x, y: u.y };
+  let best = null, bs = -1e9;
+  const consider = (o, kind) => {
+    if (o.dead || o.downed) return;
+    const d = dist(u.x, u.y, o.x, o.y);
+    if (d > 900) return;
+    let s = 1000 - d;
+    if (cmd && cmd.dir) {
+      const brg = (Math.atan2(o.x - pt.x, -(o.y - pt.y)) * 180 / Math.PI + 360) % 360;
+      let db = Math.abs(((brg - cmd.dir.bearing + 540) % 360) - 180);
+      s -= db * 3;
+    } else {
+      if (o.target && o.target.isPlayer) s += 160;
+      const th = o.target && o.target.team === 'ally' ? 200 : 0;
+      s += th;
+      if (o.lastHurtT && World.t - o.lastHurtT < 6) s += 80;
+    }
+    if (s > bs) { bs = s; best = o; }
+  };
+  if (type === 'inf' || type === 'mg' || type === 'officer') {
+    for (const e of World.units) {
+      if (e.team !== 'enemy' || e.dead) continue;
+      if (e.mount) continue;
+      if (type === 'mg' && !e.mg) continue;
+      if (type === 'officer' && !e.officer) continue;
+      consider(e);
+    }
+  } else {
+    for (const v of World.vehicles) {
+      if (v.destroyed || v.team !== 'enemy') continue;
+      const nt = v.type === 'apc' ? 'apc' : v.type;
+      if (nt !== type) continue;
+      consider(v);
+    }
+  }
+  return best;
+}
+
+function applyOrder(u, cmd) {
+  const id = cmd.action.id, A = cmd.action;
+  u.order = cmd; u.orderT = World.t; u.pendingOrder = null;
+  const th = nearestEnemyAt(u.x, u.y, 'ally');
+  switch (id) {
+    case 'advance': {
+      const goal = cmd.loc ? { x: cmd.loc.x, y: cmd.loc.y } : World.marker ? { x: World.marker.x, y: World.marker.y } : (th ? { x: th.x, y: th.y } : { x: u.x, y: u.y - 120 });
+      u.moveGoal = goal; u.holdPosition = false; u.state = '移动'; break;
+    }
+    case 'gotoPoint': case 'retreatTo': case 'enterBuilding': {
+      const goal = cmd.loc ? { x: cmd.loc.x + rr(-40, 40), y: cmd.loc.y + rr(-40, 40) } : World.marker;
+      if (goal) { u.moveGoal = goal; u.holdPosition = false; u.state = id === 'retreatTo' ? '撤退' : '移动'; }
+      break;
+    }
+    case 'fallback': {
+      const back = Math.atan2(u.y - (th ? th.y : u.y), u.x - (th ? th.x : u.x));
+      u.moveGoal = { x: u.x + Math.cos(back) * 130, y: u.y + Math.sin(back) * 130 };
+      u.state = '移动'; break;
+    }
+    case 'retreat': {
+      World.evacArmed = true;
+      u.moveGoal = { x: World.evac.x + rr(-50, 50), y: World.evac.y + rr(-50, 50) };
+      u.state = '撤退'; u.fireMode = 'free'; break;
+    }
+    case 'evac': {
+      World.evacArmed = true;
+      u.moveGoal = { x: World.evac.x + rr(-40, 40), y: World.evac.y + rr(-40, 40) };
+      u.state = '撤离'; break;
+    }
+    case 'moveLeft': case 'moveRight': {
+      const base = th ? Math.atan2(th.y - u.y, th.x - u.x) : u.facing;
+      const a = base + (id === 'moveLeft' ? -Math.PI / 2 : Math.PI / 2);
+      u.moveGoal = { x: u.x + Math.cos(a) * 120, y: u.y + Math.sin(a) * 120 };
+      u.state = '移动'; break;
+    }
+    case 'spread': {
+      const other = World.units.filter(x => x.team === 'ally' && x !== u && !x.dead);
+      const near = other.sort((a, b) => dist2(a.x, a.y, u.x, u.y) - dist2(b.x, b.y, u.x, u.y))[0];
+      if (near) {
+        const a = Math.atan2(u.y - near.y, u.x - near.x);
+        u.moveGoal = { x: u.x + Math.cos(a) * 80, y: u.y + Math.sin(a) * 80 };
+      } else {
+        u.moveGoal = { x: u.x + Math.cos(u.facing) * 70, y: u.y + Math.sin(u.facing) * 70 };
+      }
+      u.state = '移动'; break;
+    }
+    case 'flank': {
+      const t = u.target || th;
+      if (t) {
+        const base = Math.atan2(t.y - u.y, t.x - u.x);
+        u.flankPt = { x: t.x + Math.cos(base + Math.PI / 2) * 220, y: t.y + Math.sin(base + Math.PI / 2) * 220 };
+        u.moveGoal = u.flankPt; u.state = '移动';
+      } else { u.moveGoal = { x: u.x + Math.cos(u.facing) * 140, y: u.y + Math.sin(u.facing) * 140 }; u.state = '移动'; }
+      break;
+    }
+    case 'takeCover': case 'setup': {
+      const t = th || { x: u.x, y: u.y + 100 };
+      const c = findCover(u.x, u.y, t.x, t.y, 90) || { x: u.x, y: u.y };
+      u.coverPos = c;
+      /* 玩家单位是人在操控，不会自己走过去。早期这里一视同仁地置「找掩体」，
+         结果玩家收到「全体，隐蔽」后 HUD 会永久红着「找掩体」，
+         而人站在原地看着那个状态也很困惑。玩家直接进「隐蔽」，
+         coverPos 保留为地图上的建议位置标记。 */
+      if (u.isPlayer) { u.moveGoal = null; u.state = '隐蔽'; }
+      else { u.moveGoal = c; u.state = '找掩体'; }
+      break;
+    }
+    case 'hold': { u.holdPosition = true; u.moveGoal = null; u.state = '待命'; break; }
+    case 'followMe': { u.formationFollow = true; u.followTarget = World.player; u.moveGoal = null; u.state = '移动'; break; }
+    case 'fire': case 'freeFire': { u.fireMode = 'free'; u.holdPosition = false; if (u.state === '隐蔽' || u.state === '待命') u.state = '战斗'; break; }
+    case 'ceasefire': { u.fireMode = 'hold'; u.state = '隐蔽'; u.holdPosition = true; u.moveGoal = null; break; }
+    case 'focusFire': {
+      const t = nearestEnemyToMarker(u);
+      if (t) { u.focusTarget = t; u.fireMode = 'free'; if (u.state === '隐蔽' || u.state === '待命') u.state = '战斗'; }
+      break;
+    }
+    case 'suppress': {
+      u.fireMode = 'suppress'; const t = th; if (t) { u.target = t; }
+      if (u.state === '隐蔽' || u.state === '待命' || u.state === '警戒') u.state = '战斗';
+      break;
+    }
+    case 'coverMe': {
+      const t = nearestEnemyAt(World.player.x, World.player.y, 'ally');
+      if (t) { u.target = t; u.fireMode = 'suppress'; if (u.state !== '反坦克') u.state = '战斗'; }
+      break;
+    }
+    case 'atTank': case 'atAPC': case 'atJeep': case 'atTruck': case 'atInf': case 'atMG': case 'atOfficer': case 'rocket': {
+      const type = id === 'rocket' ? 'tank' : A.target;
+      const t = pickTargetByType(u, type, cmd);
+      u.preferType = type;
+      if (t) {
+        u.target = t; u.fireMode = 'free';
+        if ((t.type === 'tank' || t.type === 'apc' || t.type === 'jeep' || t.type === 'truck') && (u.weaponKey === 'at' || u.hasCharge)) {
+          u.state = '反坦克'; u.atTarget = t;
+        } else if (u.state === '隐蔽' || u.state === '待命' || u.state === '警戒') u.state = '战斗';
+      }
+      break;
+    }
+    case 'grenade': { u.grenadeOrder = true; break; }
+    case 'smoke': { u.smokeOrder = true; break; }
+    case 'rescue': {
+      const id2 = (cmd.mentioned || []).find(i => { const d = World.units.find(x => x.id === i); return d && d.downed && !d.dead; });
+      const t = id2 ? World.units.find(x => x.id === id2) : nearestDowned(u);
+      if (t) { u.rescueTarget = t; u.state = '救援'; u.moveGoal = { x: t.x, y: t.y }; }
+      break;
+    }
+    case 'drag': {
+      const t = (cmd.mentioned || []).map(i => World.units.find(x => x.id === i)).find(x => x && x.downed)
+        || nearestDowned(u);
+      if (t) { u.rescueTarget = t; u.rescueMode = 'drag'; u.state = '救援'; u.moveGoal = { x: t.x, y: t.y }; }
+      break;
+    }
+    case 'heal': {
+      const t = (cmd.mentioned || []).map(i => World.units.find(x => x.id === i)).find(x => x && x.team === 'ally' && x.hp < x.maxHp)
+        || World.units.filter(x => x.team === 'ally' && !x.dead && x.hp < x.maxHp * 0.8).sort((a, b) => dist2(a.x, a.y, u.x, u.y) - dist2(b.x, b.y, u.x, u.y))[0];
+      if (t) { u.healTarget = t; u.state = '治疗'; u.moveGoal = { x: t.x, y: t.y }; }
+      break;
+    }
+    case 'resupply': {
+      const t = World.units.filter(x => x.team === 'ally' && !x.dead && !x.downed && x !== u)
+        .sort((a, b) => (a.ammo / a.wpn.ammo) - (b.ammo / b.wpn.ammo))[0];
+      if (t) { u.resupplyTarget = t; u.state = '移动'; u.moveGoal = { x: t.x, y: t.y }; }
+      break;
+    }
+    case 'grabBox': {
+      if (World.box && !World.box.taken && !World.box.carrier) { u.boxTask = true; u.state = '移动'; u.moveGoal = { x: World.box.x, y: World.box.y }; }
+      break;
+    }
+    case 'detonate': { detonateMines(u); break; }
+    case 'blowBridge': { u.bridgeTask = true; u.state = '移动'; u.moveGoal = { x: POINTS.C.x, y: POINTS.C.y }; break; }
+    case 'cancel': { u.order = null; u.moveGoal = null; u.coverPos = null; u.holdPosition = false; u.fireMode = 'free'; u.preferType = null; u.focusTarget = null; u.formationFollow = false; u.boxTask = false; u.bridgeTask = false; u.state = '待命'; break; }
+    default: u.state = '警戒';
+  }
+}
+
+function nearestDowned(u) {
+  let best = null, bd = 1e9;
+  for (const d of World.units) {
+    if (d.team !== 'ally' || !d.downed || d.dead) continue;
+    const v = dist2(u.x, u.y, d.x, d.y);
+    if (v < bd) { bd = v; best = d; }
+  }
+  return best;
+}
+function nearestEnemyToMarker(u) {
+  const m = World.marker;
+  let best = null, bd = 1e9;
+  const cand = World.units.filter(x => x.team === 'enemy' && !x.dead && !x.mount).concat(World.vehicles.filter(v => v.team === 'enemy' && !v.destroyed));
+  for (const c of cand) {
+    const d = m ? dist2(c.x, c.y, m.x, m.y) : dist2(c.x, c.y, u.x, u.y);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+function detonateMines(u) {
+  let any = false;
+  for (const m of World.mines) {
+    if (m.used) continue;
+    let near = null;
+    for (const v of enemyVehicles()) if (dist(v.x, v.y, m.x, m.y) < 60) near = v;
+    if (near) {
+      m.used = true; any = true; World.stats.minesUsed++;
+      explosion(m.x, m.y, 70, 150, 'ally', 'mine');
+      damageVehicle(near, 240, 'mine', u);
+    }
+  }
+  if (any) { for (const a of World.units) if (a.team === 'ally') a.morale = clamp(a.morale + 6, 0, 100); }
+  else say(u.name, '雷区里还没有车，等一下', 'ok');
+}
+
+/* --------------------------------------------------------------- 指令入口 */
+function issueCommand(cmd, silent) {
+  if (World.over || !cmd || !cmd.action) return;
+  World.lastCmd = cmd;
+  World.stats.cmdIssued++;
+  const targets = resolveTargets(cmd);
+  const id = cmd.action.id;
+
+  /* 全局指令：起爆 / 炸桥 */
+  if (id === 'detonate' || id === 'blowBridge') {
+    const holder = World.units.find(x => x.id === 'laobai' && x.team === 'ally' && !x.dead && !x.downed)
+      || World.units.find(x => x.id === 'shitou' && !x.dead && !x.downed);
+    if (!holder) { say('全体', '没人能操作炸药了', 'no'); return; }
+    const ob = calcObey(holder, cmd);
+    if (ob < 0.3) { say(holder.name, pick(REPLIES.refuse), 'no'); World.stats.cmdRefused++; return; }
+    applyOrder(holder, cmd);
+    World.stats.cmdExec++;
+    say(holder.name, id === 'detonate' ? '收到，准备起爆' : '收到，我去炸桥', 'ok');
+    return;
+  }
+  if (id === 'repeat') {
+    if (!World.lastCmd || World.lastCmd === cmd) { say('全体', '……请把指令再说一遍', 'no'); return; }
+    for (const u of World.units) if (u.team === 'ally') u.obeyBoost = 0.2;
+    say('你', '重复：' + World.lastCmd.action.label + (World.lastCmd.callsign ? '（' + World.lastCmd.callsign.label + '）' : ''), 'cmd');
+    const c2 = JSON.parse(JSON.stringify(World.lastCmd));
+    issueCommand(c2, true);
+    return;
+  }
+  if (id === 'cancel') {
+    for (const u of targets) { if (u.dead) continue; applyOrder(u, cmd); }
+    say('全体', '取消指令，返回自动状态', 'sys'); return;
+  }
+  if (id === 'ack') { say('你', '收到', 'cmd'); return; }
+
+  /* 状态报告：即时语音回复，不改状态 */
+  if (cmd.action.kind === 'report') {
+    for (const u of targets) { if (u.dead) continue; say(u.name, reportLine(u, id), 'ok'); }
+    World.stats.cmdExec++;
+    return;
+  }
+
+  /* applyOrder 前置检查：需要满足前提条件 */
+  for (const u of targets) {
+    if (u.dead || u.downed) continue;
+    const need = precheck(u, cmd);
+    if (!need.ok) { say(u.name, need.msg, 'no'); World.stats.cmdRefused++; continue; }
+    const ob = calcObey(u, cmd);
+    u.obeyRoll = ob;
+    if (ob > 0.6) {
+      applyOrder(u, cmd);
+      World.stats.cmdExec++;
+      if (!silent) say(u.name, pick(REPLIES.ok), 'ok');
+      if (u.isPlayer) { /* 玩家指令无需回复 */ }
+    } else if (ob > 0.3) {
+      u.pendingOrder = cmd; u.pendingT = rr(1, 3);
+      say(u.name, pick(REPLIES.delay), 'warn');
+      World.stats.cmdRefused++;
+    } else {
+      say(u.name, u.state === '恐慌' ? pick(REPLIES.panic) : pick(REPLIES.refuse), 'no');
+      World.stats.cmdRefused++;
+    }
+  }
+  if (!targets.length) say('全体', '没有人响应（呼号未匹配）', 'no');
+}
+function precheck(u, cmd) {
+  const id = cmd.action.id;
+  if (id === 'rescue' || id === 'drag') {
+    const t = nearestDowned(u);
+    if (!t) return { ok: false, msg: '没有人需要救' };
+  }
+  if (id === 'atTank' || id === 'atAPC') {
+    if (u.weaponKey === 'at' && u.rockets <= 0) return { ok: false, msg: '火箭弹打光了' };
+  }
+  if ((id === 'atTank' || id === 'atAPC' || id === 'atJeep' || id === 'atTruck') && u.weaponKey === 'at') {
+    const t = pickTargetByType(u, cmd.action.target, cmd);
+    if (!t) return { ok: false, msg: '视野里没有目标' };
+    if (u.rockets <= 0) return { ok: false, msg: '火箭弹打光了' };
+  }
+  if (id === 'grenade' && u.grenades <= 0) return { ok: false, msg: '手雷用完了' };
+  if (id === 'smoke' && u.smokes <= 0) return { ok: false, msg: '没有烟雾弹' };
+  if (id === 'grabBox' && (!World.box || World.box.taken)) return { ok: false, msg: '密码箱不在地上了' };
+  if (u.ammo <= 0 && (cmd.action.kind === 'combat' || cmd.action.kind === 'atk')) return { ok: false, msg: '没弹药了' };
+  return { ok: true };
+}
+function reportLine(u, id) {
+  const st = u.downed ? '受伤倒地' : u.hp > 85 ? '未受伤' : u.hp > 55 ? '轻伤' : u.hp > 30 ? '受伤' : '重伤';
+  if (id === 'reportAmmo') return '弹药还有 ' + Math.max(0, Math.round(u.ammo)) + ' 发' + (u.weaponKey === 'at' ? '，火箭弹 ' + u.rockets + ' 发' : '');
+  if (id === 'reportPos') {
+    let near = '公路南侧', bd = 1e9;
+    for (const k in POINTS) { const d = dist(u.x, u.y, POINTS[k].x, POINTS[k].y); if (d < bd) { bd = d; near = POINTS[k].name; } }
+    return near + '附近';
+  }
+  if (id === 'reportCas') {
+    const d = downedAllies();
+    const dead = World.units.filter(x => x.team === 'ally' && x.dead);
+    if (!d.length && !dead.length) return '无人伤亡';
+    return (dead.length ? dead.length + ' 人阵亡，' : '') + (d.length ? d.map(x => x.name).join('、') + ' 受伤' : '无人需要救援');
+  }
+  if (id === 'reportContact') {
+    const list = [];
+    for (const v of enemyVehicles()) { if (canSee(u, v)) list.push(v.name + ' 在 ' + bearingName(u, v)); }
+    const ei = enemies().filter(e => !e.mount && canSee(u, e)).slice(0, 4);
+    if (ei.length) list.push('步兵 ' + ei.map(e => bearingName(u, e)).join('、'));
+    return list.length ? list.slice(0, 3).join('；') : '视野内没有敌人';
+  }
+  if (id === 'reportRemain') {
+    const inf = enemies().filter(e => !e.mount).length;
+    const veh = enemyVehicles().filter(v => v.type !== 'truck').length;
+    return '还剩 ' + inf + ' 个步兵，' + veh + ' 辆装甲目标';
+  }
+  if (id === 'ready') return '已就位';
+  return st + '，弹药 ' + Math.round(u.ammo);
+}
+function bearingName(from, to) {
+  let brg = (Math.atan2(to.x - from.x, -(to.y - from.y)) * 180 / Math.PI + 360) % 360;
+  const h = Math.round(brg / 30) % 12 || 12;
+  return h + ' 点方向';
+}
+
+/* =========================================================================
+   四、战斗：弹道 / 命中 / 压制
+   ========================================================================= */
+function spawnBullet(u, tgt, spreadMul, opts) {
+  const w = u.wpn;
+  const base = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+  const sp = (w.spread || 0.05) * (spreadMul || 1);
+  const a = base + (RNG() + RNG() + RNG() - 1.5) * sp * 2;
+  World.projectiles.push({
+    type: 'bullet', x: u.x + Math.cos(a) * 8, y: u.y + Math.sin(a) * 8,
+    vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed, dmg: w.dmg, pen: w.pen,
+    team: u.team, owner: u, life: w.range / w.speed, t: 0, sup: w.sup,
+    color: u.team === 'ally' ? 'rgba(190,235,255,.95)' : 'rgba(255,190,150,.95)',
+  });
+  u.magAmmo--; u.shots++;
+  if (u.team === 'ally') World.stats.shotFired = true;
+  fx({ type: 'flash', x: u.x + Math.cos(a) * 8, y: u.y + Math.sin(a) * 8, life: 0.055, a });
+  if (u.team === 'ally') { World.noise = clamp(World.noise + 0.02, 0, 1); World.noiseT = Math.max(World.noiseT || 0, 0.25); }
+}
+function spawnRocket(u, tgt) {
+  const base = Math.atan2(tgt.y - u.y, tgt.x - u.x) + rr(-0.02, 0.02);
+  World.projectiles.push({
+    type: 'rocket', x: u.x + Math.cos(base) * 12, y: u.y + Math.sin(base) * 12,
+    vx: Math.cos(base) * ROCKET.speed, vy: Math.sin(base) * ROCKET.speed,
+    dmg: ROCKET.dmgVeh, dmgInf: ROCKET.dmgInf, splash: ROCKET.splash, team: u.team, owner: u,
+    life: ROCKET.range / ROCKET.speed, t: 0, color: 'rgba(255,220,120,.95)',
+  });
+  u.rockets--; u.shots++;
+  if (u.team === 'ally') World.stats.shotFired = true;
+  fx({ type: 'flash', x: u.x + Math.cos(base) * 10, y: u.y + Math.sin(base) * 10, life: 0.12, a: base, big: true });
+  say(u.name, '火箭弹出去了！', 'ok');
+}
+function throwGrenade(u, tx, ty, kind) {
+  World.projectiles.push({
+    type: kind === 'smoke' ? 'smokeG' : 'grenade', x: u.x, y: u.y,
+    tx, ty, t: 0, life: 1.5, fuse: kind === 'smoke' ? 0.9 : 1.7, team: u.team, owner: u,
+    dmg: 85, splash: 72, color: kind === 'smoke' ? 'rgba(200,200,200,.9)' : 'rgba(140,170,120,.95)',
+  });
+  if (kind === 'smoke') u.smokes--; else u.grenades--;
+  fx({ type: 'flash', x: u.x, y: u.y, life: 0.08, a: Math.atan2(ty - u.y, tx - u.x) });
+}
+function spawnShell(v, tx, ty) {
+  const base = Math.atan2(ty - v.y, tx - v.x) + rr(-0.02, 0.02);
+  World.projectiles.push({
+    type: 'shell', x: v.x + Math.cos(base) * 36, y: v.y + Math.sin(base) * 36,
+    vx: Math.cos(base) * SHELL.speed, vy: Math.sin(base) * SHELL.speed,
+    dmg: SHELL.dmg, splash: SHELL.splash, team: v.team, owner: v, life: 2.0, t: 0,
+    color: 'rgba(255,240,190,.95)',
+  });
+  fx({ type: 'flash', x: v.x + Math.cos(base) * 34, y: v.y + Math.sin(base) * 34, life: 0.16, a: base, big: true });
+  World.noise = clamp(World.noise + 0.5, 0, 1); World.noiseT = 1.0;
+}
+function spawnTankMG(v, tgt) {
+  const base = Math.atan2(tgt.y - v.y, tgt.x - v.x) + (RNG() + RNG() - 1) * 0.10;
+  World.projectiles.push({
+    type: 'bullet', x: v.x + Math.cos(base) * 30, y: v.y + Math.sin(base) * 30,
+    vx: Math.cos(base) * 950, vy: Math.sin(base) * 950, dmg: v.spec.mg.dmg, pen: 0.12,
+    team: v.team, owner: v, life: 0.6, t: 0, sup: v.spec.mg.sup, color: 'rgba(255,160,120,.95)',
+  });
+  fx({ type: 'flash', x: v.x + Math.cos(base) * 30, y: v.y + Math.sin(base) * 30, life: 0.05, a: base });
+}
+
+function updateProjectiles(dt) {
+  const P = World.projectiles;
+  for (let i = P.length - 1; i >= 0; i--) {
+    const p = P[i];
+    p.t += dt;
+    if (p.type === 'grenade' || p.type === 'smokeG') {
+      const k = p.t / p.life;
+      p.x = lerp(p.x, p.tx, Math.min(1, dt * 4.5 + (k > 0.9 ? 1 : 0.12)));
+      p.y = lerp(p.y, p.ty, Math.min(1, dt * 4.5 + (k > 0.9 ? 1 : 0.12)));
+      if (p.t >= p.life) {
+        if (p.type === 'smokeG') { World.smokes.push({ x: p.x, y: p.y, r: 62, t: 0, life: 16 }); say('全体', '烟雾已释放', 'ok'); }
+        else explosion(p.x, p.y, p.splash, p.dmg, p.team, 'grenade');
+        P.splice(i, 1);
+      }
+      continue;
+    }
+    const steps = Math.max(1, Math.ceil(Math.hypot(p.vx, p.vy) * dt / 4));
+    let dead = false;
+    for (let s = 0; s < steps && !dead; s++) {
+      const px = p.x, py = p.y;
+      p.x += p.vx * dt / steps; p.y += p.vy * dt / steps;
+      // 掩体
+      for (const pr of World.props) {
+        if (pr.destroyed || !pr.blocksBullet) continue;
+        const rin = pr.r + 2.5;
+        if (dist2(px, py, pr.x, pr.y) <= rin * rin) continue;   // 出膛时已贴着这块掩体 → 视为擦过，否则贴身射击会被自己的掩体吃掉
+        if (segCircle(px, py, p.x, p.y, pr.x, pr.y, pr.r)) {
+          if (pr.explosive) { pr.destroyed = true; chainBarrel(pr); }
+          fx({ type: 'spark', x: p.x, y: p.y, life: 0.18 });
+          dead = true; break;
+        }
+      }
+      if (dead) break;
+      // 步兵
+      for (const u of World.units) {
+        if (u.dead || u.downed || u.team === p.team) continue;
+        if (u.mount) continue;
+        /* 用「本子步的位移线段」判命中，而不是只判终点：
+           步兵判定半径 5.2+3=8.2px 与子步长同量级，只判终点会让掠射弹整段漏检（命中率被腰斩） */
+        if (segCircle(px, py, p.x, p.y, u.x, u.y, u.radius + 3)) {
+          if (p.type === 'rocket') { explosion(p.x, p.y, p.splash, p.dmgInf, p.team, 'rocket'); }
+          else damageUnit(u, p.dmg, p.owner, 'bullet');
+          if (p.owner && p.owner.team === 'ally') p.owner.hits++;
+          fx({ type: 'spark', x: p.x, y: p.y, life: 0.16, blood: true });
+          dead = true; break;
+        }
+      }
+      if (dead) break;
+      // 车辆
+      for (const v of World.vehicles) {
+        if (v.destroyed || v.team === p.team) continue;
+        if (vehicleHit(v, p.x, p.y)) {
+          if (p.type === 'rocket') explosion(p.x, p.y, p.splash, p.dmg, p.team, 'rocket', 1.0, 'rocket');
+        else if (p.type === 'shell') explosion(p.x, p.y, p.splash, p.dmg, p.team, 'shell', 0.5, 'shell');
+          else damageVehicle(v, p.dmg, 'bullet', p.owner);
+          fx({ type: 'spark', x: p.x, y: p.y, life: 0.16 });
+          dead = true; break;
+        }
+      }
+      if (dead) break;
+      // 近失弹压制
+      if (p.sup) {
+        for (const u of World.units) {
+          if (u.dead || u.team === p.team) continue;
+          if (dist2(p.x, p.y, u.x, u.y) < 900) u.suppression = clamp(u.suppression + p.sup * dt * 6, 0, 100);
+        }
+      }
+    }
+    if (!dead && p.t > p.life) {
+      if (p.type === 'rocket' || p.type === 'shell') explosion(p.x, p.y, p.splash, p.dmg, p.team, 'shell');
+      dead = true;
+    }
+    if (dead) P.splice(i, 1);
+  }
+}
+function vehicleHit(v, x, y) {
+  const dx = x - v.x, dy = y - v.y;
+  const c = Math.cos(-v.angle), s = Math.sin(-v.angle);
+  const lx = dx * c - dy * s, ly = dx * s + dy * c;
+  return Math.abs(lx) < v.len / 2 + 2 && Math.abs(ly) < v.wid / 2 + 2;
+}
+
+/* =========================================================================
+   五、队友 AI（感知 → 决策 → 行动 → 通讯）
+   ========================================================================= */
+function setState(u, s) { if (u.state !== s) { u.state = s; u.stateT = 0; } }
+
+function perceive(u) {
+  let best = null, bd = 1e9;
+  const r = visRange(u);
+  const cand = [];
+  /* 目标必须是「对面阵营」：早期这里写死 team === 'enemy'，
+     导致敌人调用本函数时把同袍（甚至自己）当成目标 —— 敌人会朝自己开枪且永不推进 */
+  for (const e of World.units) { if (e !== u && e.team !== u.team && !e.dead && !e.downed && !e.mount) cand.push(e); }
+  for (const v of World.vehicles) { if (v.team !== u.team && !v.destroyed) cand.push(v); }
+  for (const e of cand) {
+    const d = dist(u.x, u.y, e.x, e.y);
+    if (d > r) continue;
+    if (losSight(u.x, u.y, e.x, e.y) && d > 130) continue;
+    if (d < bd) { bd = d; best = e; }
+  }
+  u.seen = best; u.seenD = bd;
+  if (best) u.lastSeen = { x: best.x, y: best.y, t: World.t };
+  return best;
+}
+
+function allyTargetSelect(u) {
+  // 目标优先级（文档 5.）：玩家指定 > 正在攻击队友的敌人 > 角色优先 > 最近威胁
+  if (u.focusTarget && !u.focusTarget.dead && !u.focusTarget.destroyed && canSee(u, u.focusTarget)) return u.focusTarget;
+  if (u.atTarget && !u.atTarget.dead && !u.atTarget.destroyed) return u.atTarget;
+  if (u.preferType) {
+    const t = pickTargetByType(u, u.preferType, null);
+    if (t && canSee(u, t)) return t;
+  }
+  // 反坦克手优先装甲
+  if (u.weaponKey === 'at' && u.rockets > 0) {
+    const t = pickTargetByType(u, 'tank', null) || pickTargetByType(u, 'apc', null);
+    if (t && canSee(u, t) && dist(u.x, u.y, t.x, t.y) < ROCKET.range) return t;
+  }
+  // 狙击手优先军官 / 机枪手 / 驾驶员
+  if (u.weaponKey === 'sniper') {
+    const o = pickTargetByType(u, 'officer', null);
+    if (o && canSee(u, o)) return o;
+    const m = pickTargetByType(u, 'mg', null);
+    if (m && canSee(u, m)) return m;
+  }
+  if (u.seen && !ineffectiveTarget(u, u.seen)) return u.seen;
+  /* 「看得见的」只剩打不动的装甲目标 → 改打打得动的步兵，别对着铁壳子空转整场 */
+  const soft = pickTargetByType(u, 'inf', null);
+  if (soft && canSee(u, soft)) return soft;
+  return u.seen || null;
+}
+
+/* 手里的枪啃不动的目标：子弹对车辆的穿透系数就是车辆 armor 值（坦克 0.04 → 每发 0.52 点），
+   一个弹匣打上去不如半发火箭。这里统一判定，避免步枪手把整场火力浪费在装甲车上。
+   反坦克手与带炸药包的老白不算。 */
+function ineffectiveTarget(u, t) {
+  if (!t || !t.spec) return false;
+  if (u.weaponKey === 'at' || u.hasCharge) return false;
+  return t.type === 'tank' || t.type === 'apc';
+}
+
+function tryReload(u) {
+  if (u.reloadT > 0) return;
+  if (u.magAmmo > u.wpn.mag * 0.4) return;
+  if (u.ammo <= 0) return;
+  u.reloadT = u.wpn.reload * (u.state === '被压制' ? 1.35 : 1);
+}
+function finishReload(u) {
+  const need = Math.min(u.wpn.mag - u.magAmmo, u.ammo);
+  u.magAmmo += need; u.ammo -= need;
+}
+
+function spreadMul(u) {
+  let m = 1;
+  m *= 1 + u.suppression / 110;
+  if (u.moving) m *= 1.45;
+  if (u.aimT < 0.45) m *= 1.8;
+  if (World.weather === 'rain') m *= 1.12;
+  if (World.weather === 'night') m *= 1.2;
+  return m;
+}
+
+function fireAt(u, tgt, dt) {
+  if (u.fireMode === 'hold' || u.hideFire) return;
+  if (u.reloadT > 0) return;
+  if (u.magAmmo <= 0) { tryReload(u); return; }
+  if (u.fireCd > 0) return;
+  const w = u.wpn;
+  const d = dist(u.x, u.y, tgt.x, tgt.y);
+  if (d > w.range) return;
+  if (d > 60 && losFire(u.x, u.y, tgt.x, tgt.y)) return;
+  /* 潜伏阶段的火力纪律（文档：「沉住气，不要提前开火」）
+     —— 未收到开火命令时必须按住，只有敌人贴到 55px 才允许自卫还击。
+     早期用的是 130px，结果车队刚开进地图边沿就被伏击圈外的队员点着，
+     头车在伏击圈以东几百米处被打瘫，后面所有车都被残骸堵在那里 —— 伏击圈形同虚设。 */
+  if (u.team === 'ally' && !World.triggered && !orderedToFire(u) && d > 55) return;
+  const isVeh = !!tgt.spec;
+  /* 火箭弹只打坦克/装甲车；未受命时近距自卫才用，避免把伏击位置提前打乱 */
+  if (isVeh && atMayUseRocket(u, tgt, d)) { spawnRocket(u, tgt); u.fireCd = ROCKET.rof; u.reloadT = ROCKET.reload * 0.5; return; }
+  /* 手里的枪啃不动的装甲目标：除非玩家明确下令（如「全体，打装甲车」），否则不必浪费弹药 */
+  if (isVeh && ineffectiveTarget(u, tgt) && !orderedToFire(u)) return;
+  u.burstLeft = u.burstLeft > 0 ? u.burstLeft - 1 : w.burst - 1;
+  u.fireCd = u.burstLeft > 0 ? w.rof : w.rof + w.burstGap;
+  if (u.team === 'ally' && !World.triggered) triggerAmbush('selfdef');
+  spawnBullet(u, tgt, spreadMul(u));
+  if (u.state === '隐蔽' || u.state === '待命') { if (u.noAutoFire) return; setState(u, '战斗'); }
+}
+
+/* 该单位是否已收到「开火类」命令（收到后就不再受潜伏期火力纪律约束，可以主动打响第一枪） */
+const FIRE_ACTIONS = ['fire', 'freeFire', 'focusFire', 'suppress', 'coverMe', 'atTank', 'atAPC',
+  'atJeep', 'atTruck', 'atInf', 'atMG', 'atOfficer', 'grenade', 'smoke', 'rocket'];
+function orderedToFire(u) {
+  return !!(u.order && u.order.action && FIRE_ACTIONS.indexOf(u.order.action.id) >= 0);
+}
+
+/* 反坦克手是否该用火箭弹（文档：反坦克手：坦克 > 装甲车 > 吉普）
+   注意：卡车默认不算装甲目标（火箭弹要留给坦克/装甲车），但玩家一旦明确下令「打卡车」
+   就必须放行 —— 密码箱有 62% 概率锁在卡车后厢，不允许打就意味着该局面下主目标不可达。 */
+function atMayUseRocket(u, tgt, d) {
+  if (u.weaponKey !== 'at' || u.rockets <= 0) return false;
+  const ordered = u.order && u.order.action &&
+    (u.order.action.id === 'atTank' || u.order.action.id === 'atAPC' || u.order.action.id === 'atTruck' || u.order.action.id === 'rocket');
+  const armTarget = tgt.type === 'tank' || tgt.type === 'apc' || (ordered && tgt.type === 'truck');
+  if (!armTarget) return false;
+  /* 这里曾经限制「未受命时 d<420」。但潜伏期的火力纪律（fireAt 里的 orderedToFire 判定）
+     已经保证了伏击前不会有人开枪，这条限制只剩下副作用：反坦克手会抱着 3 发火箭弹
+     被 460px 外正在开火的坦克打死，一发都不还手。触发后按火箭弹实际射程交火。 */
+  return d < ROCKET.range;
+}
+function throwGrenadeAuto(u, tgt) {  if (u.grenades <= 0 || u.grenadeCd > 0) return;
+  const d = dist(u.x, u.y, tgt.x, tgt.y);
+  if (d > 150) return;
+  let cluster = 0;
+  for (const e of enemies()) if (!e.mount && dist(e.x, e.y, tgt.x, tgt.y) < 45) cluster++;
+  if (cluster < 2 && d > 90) return;
+  u.grenadeCd = 10;
+  throwGrenade(u, tgt.x + rr(-8, 8), tgt.y + rr(-8, 8), 'grenade');
+  say(u.name, '手雷！', 'ok');
+}
+
+function moveStep(u, dt, speedMul) {
+  if (!u.moveGoal) { u.moving = false; return; }
+  const g = u.moveGoal;
+  const d = dist(u.x, u.y, g.x, g.y);
+  if (d < 12) { u.moving = false; u.arrived = true; u.moveGoal = null; return; }
+  let sp = (u.team === 'ally' ? 46 : 44) * (speedMul || 1);
+  if (u.suppression > 60) sp *= 0.72;
+  if (u.reloadT > 0) sp *= 0.94;
+  if (inRiver(u.x, u.y) && !onBridge(u.x, u.y)) sp *= 0.5;
+  const spd = d < 40 ? sp * 0.6 : sp;
+  const a = steerAngle(u, g.x, g.y);
+  const nx = u.x + Math.cos(a) * spd * dt, ny = u.y + Math.sin(a) * spd * dt;
+  const stuck = propBlocked(u.x, u.y, 6);   // 若已被卡在车体/掩体内，允许先走出来
+  /* 逐帧步长只有 ~2.6px，却一直用「半径 6 的碰撞圈」判否 ——
+     只要目的地仍然落在圈里，这一步就被否掉，而 2.6px 根本不够跳出圈外，
+     于是队员会被永久焊在掩体外沿（实测铁头抱着「取密码箱」任务在岩石边钉了 330 秒，
+     箱子就在 900px 外躺着没人去捡）。逐帧步进改用 2px 间隙：能贴着掩体滑行，
+     也走不进石头里（最小掩体半径 15px，一步 2.6px 跨不过去）。 */
+  const free = (x, y) => passable(x, y) && (stuck || !propBlocked(x, y, 2));
+  let moved = false;
+  if (free(nx, u.y)) { u.x = nx; moved = true; }
+  if (free(u.x, ny)) { u.y = ny; moved = true; }
+  u.moving = moved;
+  if (!u.aiming) u.facing = a;
+  u.wobble += dt * 6;
+}
+function steerAngle(u, tx, ty) {
+  const base = Math.atan2(ty - u.y, tx - u.x);
+  for (const off of [0, 0.45, -0.45, 0.95, -0.95, 1.5, -1.5, 2.2, -2.2]) {
+    const a = base + off;
+    const nx = u.x + Math.cos(a) * 26, ny = u.y + Math.sin(a) * 26;
+    if (passable(nx, ny) && !propBlocked(nx, ny, 7)) return a;
+  }
+  return base + Math.PI;
+}
+
+function updateAlly(u, dt) {
+  if (u.dead) return;
+  u.stateT += dt;
+  u.hitFlash = Math.max(0, u.hitFlash - dt);
+  u.aimT += dt;
+
+  /* ---------- 失能 / 倒地 ---------- */
+  if (u.downed) {
+    u.downTimer -= dt;
+    if (u.draggedBy && !u.draggedBy.dead && !u.draggedBy.downed) {
+      const d = u.draggedBy;
+      u.x = lerp(u.x, d.x - Math.cos(d.facing) * 14, Math.min(1, dt * 3));
+      u.y = lerp(u.y, d.y - Math.sin(d.facing) * 14, Math.min(1, dt * 3));
+    }
+    if (u.downTimer <= 0) killUnit(u, null);
+    else if (u.downTimer < 12 && u.speakCd <= 0) { u.speakCd = 8; say(u.name, '我快撑不住了……', 'no'); }
+    return;
+  }
+
+  /* ---------- 计时器 ---------- */
+  u.fireCd -= dt; u.burstCd -= dt; u.grenadeCd = (u.grenadeCd || 0) - dt;
+  u.speakCd -= dt; u.reportCd -= dt; u.secReport -= dt;
+  if (u.reloadT > 0) { u.reloadT -= dt; if (u.reloadT <= 0) finishReload(u); }
+  if (u.obeyBoost > 0) u.obeyBoost = Math.max(0, u.obeyBoost - dt * 0.025);
+  u.suppression = Math.max(0, u.suppression - dt * (u.holdPosition ? 13 : 9.5));
+  if (u.stateT > 2.5 && u.morale < 100 && u.state !== '恐慌') u.morale = clamp(u.morale + dt * 1.4, 0, 100);
+
+  /* ---------- 感知 ---------- */
+  u.aiT -= dt;
+  if (u.aiT <= 0) { u.aiT = 0.18 + RNG() * 0.2; perceive(u); }
+  const enemy = u.seen;
+
+  /* ---------- 延迟指令 ---------- */
+  if (u.pendingOrder) {
+    u.pendingT -= dt;
+    if (u.pendingT <= 0) { applyOrder(u, u.pendingOrder); u.pendingOrder = null; }
+  }
+
+  /* ---------- 恐慌 ---------- */
+  if (u.morale < 20 && u.state !== '恐慌' && RNG() < 1.2 * dt) { setState(u, '恐慌'); say(u.name, pick(REPLIES.panic), 'no'); }
+  if (u.state === '恐慌') {
+    if (u.morale > 38) setState(u, '警戒');
+    else {
+      if (!u.moveGoal || u.arrived) {
+        const a = Math.atan2(u.y - POINTS.G.y, u.x - POINTS.G.x) + rr(-0.6, 0.6);
+        u.moveGoal = { x: u.x + Math.cos(a) * 160, y: u.y + Math.sin(a) * 160 };
+      }
+      moveStep(u, dt, 1.35);
+      if (enemy && RNG() < 0.4) fireAt(u, enemy, dt);
+      return;
+    }
+  }
+
+  /* ---------- 专属任务：搬运密码箱 / 炸桥 ---------- */
+  if (u.boxTask) {
+    if (!World.box || World.box.taken) { u.boxTask = false; u.moveGoal = null; }
+    else {
+      u.moveGoal = { x: World.box.x, y: World.box.y };
+      moveStep(u, dt, 1.15);
+      if (dist(u.x, u.y, World.box.x, World.box.y) < 26) {
+        World.box.taken = true; World.box.carrier = u; u.carryBox = true; u.boxTask = false;
+        World.stats.boxTaken = true;
+        World.evacArmed = true;                       // 拿到密码箱 → 进入撤离阶段
+        say(u.name, '拿到密码箱了！', 'ok'); toast('密码箱已到手，全队准备撤离');
+      }
+      /* 这里不再 return：取箱的人必须能边走边打。
+         早期一取到任务就整段跳过战斗逻辑，结果他端着步枪一言不发地走进车队的火网，
+         在离箱子 58px 的地方被车顶机枪打死 —— 箱子就躺在脚边，谁也拿不到。 */
+    }
+  }
+  if (u.bridgeTask) {
+    if (!World.bridgeAlive) { u.bridgeTask = false; }
+    else {
+      u.moveGoal = { x: POINTS.C.x, y: POINTS.C.y + 40 };
+      moveStep(u, dt, 1.1);
+      if (dist(u.x, u.y, POINTS.C.x, POINTS.C.y) < 70) {
+        u.plantT = (u.plantT || 0) + dt;
+        u.aiming = true;
+        if (u.plantT > 8) {
+          World.bridgeAlive = false; World.stats.bridgeBlown = true; u.bridgeTask = false;
+          explosion(POINTS.C.x, POINTS.C.y, 120, 60, null, 'bridge');
+          updateEvacMarker();
+          say(u.name, '桥炸了！改从南侧树林撤离', 'sys');
+          toast('桥梁已摧毁 · 撤离点改为 E 南侧树林');
+        } else if (Math.floor(u.plantT) !== Math.floor(u.plantT - dt)) say(u.name, '安放炸药 ' + Math.floor(u.plantT) + '/8', 'ok');
+      }
+      return;
+    }
+  }
+  /* ---------- 救援 ---------- */
+  if (u.rescueTarget && (u.rescueTarget.dead || !u.rescueTarget.downed)) { u.rescueTarget = null; u.rescueMode = null; if (u.state === '救援') setState(u, '警戒'); }
+  if (u.rescueTarget) {
+    const t = u.rescueTarget;
+    const d = dist(u.x, u.y, t.x, t.y);
+    if (u.rescueMode === 'drag') {
+      if (d > 18) { u.moveGoal = { x: t.x, y: t.y }; moveStep(u, dt, 1.1); t.draggedBy = u; return; }
+      t.draggedBy = u;
+      const c = findCover(t.x, t.y, t.x + 20, t.y + 20, 70);
+      if (c) {
+        if (!u.dragGoal) u.dragGoal = c;
+        u.moveGoal = u.dragGoal; t.moveGoal = u.dragGoal;
+        moveStep(u, dt, 0.85);
+        t.x = lerp(t.x, u.x - Math.cos(u.facing) * 14, Math.min(1, dt * 3));
+        t.y = lerp(t.y, u.y - Math.sin(u.facing) * 14, Math.min(1, dt * 3));
+        if (dist(u.x, u.y, c.x, c.y) < 20) {
+          u.dragGoal = null; t.draggedBy = null;
+          say(u.name, t.name + '拖到掩体后了', 'ok');
+          u.rescueMode = null; u.rescueTarget = null; setState(u, '警戒');
+        }
+      }
+      return;
+    }
+    if (d > 16) { u.moveGoal = { x: t.x, y: t.y }; moveStep(u, dt, 1.2); u.state = '救援'; return; }
+    setState(u, '治疗');
+    u.aiming = true; t.draggedBy = null;
+    t.reviveT += dt / 3.2;
+    if (t.reviveT >= 1) {
+      t.downed = false; t.hp = 55; t.reviveT = 0; t.suppression = 0; t.state = '警戒';
+      say(u.name, t.name + '救回来了', 'ok');
+      for (const a of allies()) a.morale = clamp(a.morale + 5, 0, 100);
+      u.rescueTarget = null; setState(u, '警戒');
+    }
+    return;
+  }
+  /* 治疗轻伤 */
+  if (u.healTarget && u.healTarget.hp < u.healTarget.maxHp && !u.healTarget.dead) {
+    const t = u.healTarget, d = dist(u.x, u.y, t.x, t.y);
+    if (d > 16) { u.moveGoal = { x: t.x, y: t.y }; moveStep(u, dt, 1.15); }
+    else {
+      t.hp = Math.min(t.maxHp, t.hp + dt * 14); u.aiming = true;
+      if (t.hp >= t.maxHp) { say(u.name, t.name + '包扎好了', 'ok'); u.healTarget = null; setState(u, '警戒'); }
+    }
+    return;
+  }
+  /* 补给 */
+  if (u.resupplyTarget && !u.resupplyTarget.dead) {
+    const t = u.resupplyTarget, d = dist(u.x, u.y, t.x, t.y);
+    if (d > 18) { u.moveGoal = { x: t.x, y: t.y }; moveStep(u, dt, 1.15); }
+    else {
+      for (const a of allies()) if (dist(a.x, a.y, u.x, u.y) < 90) {
+        a.ammo = a.wpn.ammo; if (a.weaponKey === 'at') a.rockets = ROCKET.ammo; if (a.weaponKey !== 'at') a.grenades = Math.max(a.grenades, 2);
+      }
+      say(u.name, '弹药补满了', 'ok'); u.resupplyTarget = null; setState(u, '警戒');
+    }
+    return;
+  }
+
+  /* ---------- 医疗兵自动救援 ---------- */
+  if (u.role === '医疗兵' && !u.rescueTarget && (!u.order || u.order.action.id === 'cancel')) {
+    const d = nearestDowned(u);
+    if (d && dist(u.x, u.y, d.x, d.y) < 460) { u.rescueTarget = d; u.rescueMode = null; say(u.name, '我去救人！', 'ok'); }
+  }
+  /* ---------- 被压制 → 找掩体 ---------- */
+  if (u.suppression > 62 && !u.holdPosition && u.state !== '找掩体' && u.state !== '撤退' && u.state !== '撤离') {
+    if (u.stateT > 0.8 && RNG() < 2.5 * dt) {
+      const t = enemy || { x: u.x, y: u.y + 100 };
+      const c = findCover(u.x, u.y, t.x, t.y, 80);
+      if (c) { u.coverPos = c; u.moveGoal = c; setState(u, '找掩体'); }
+      if (u.speakCd <= 0) { u.speakCd = 6; say(u.name, '我被压住了！', 'no'); }
+    }
+  }
+  /* ---------- 自动占领掩体（无指令时） ---------- */
+  if (!u.moveGoal && !u.holdPosition && enemy && u.stateT > 1.2 && !u.coverPos && RNG() < 1.6 * dt) {
+    const c = findCover(u.x, u.y, enemy.x, enemy.y, 78);
+    if (c) { u.coverPos = c; u.moveGoal = c; if (u.state !== '反坦克') setState(u, '找掩体'); }
+  }
+  if (u.moveGoal && u.coverPos && dist(u.x, u.y, u.coverPos.x, u.coverPos.y) < 10) u.coverPos = null;
+
+  /* ---------- 通讯：发现敌人就报告 ---------- */
+  if (enemy && u.reportCd <= 0 && dist(u.x, u.y, enemy.x, enemy.y) < 420) {
+    u.reportCd = rr(9, 18);
+    const nm = enemy.spec ? enemy.name : (enemy.officer ? '敌军军官' : enemy.mg ? '机枪手' : '步兵');
+    say(u.name, nm + ' 在 ' + bearingName(u, enemy) + '！', 'ok');
+  }
+  if (enemy) { const a = Math.atan2(enemy.y - u.y, enemy.x - u.x); u.facing = norm(u.facing + angDiff(a, u.facing) * Math.min(1, dt * 7)); u.aiming = true; }
+  else u.aiming = false;
+
+  /* ---------- 开火 ---------- */
+  const tgt = allyTargetSelect(u);
+  u.target = tgt;
+  if (tgt) {
+    if (u.state === '待命' || u.state === '警戒' || u.state === '部署' || u.state === '找掩体') setState(u, '战斗');
+    if (dist(u.x, u.y, tgt.x, tgt.y) < u.wpn.range && !losFire(u.x, u.y, tgt.x, tgt.y)) {
+      if (tgt.spec && (u.weaponKey === 'at' || u.hasCharge) && u.rockets > 0) setState(u, '反坦克');
+      fireAt(u, tgt, dt);
+      if (u.grenades > 0 && !tgt.spec) throwGrenadeAuto(u, tgt);
+    }
+  } else if (u.state === '战斗' && !enemy) {
+    if (u.stateT > 3) setState(u, u.holdPosition ? '待命' : '警戒');
+  }
+  if (u.grenadeOrder) {
+    u.grenadeOrder = false;
+    const t = enemy || (World.marker ? World.marker : null);
+    if (t && u.grenades > 0 && dist(u.x, u.y, t.x, t.y) < 220) { throwGrenade(u, t.x, t.y, 'grenade'); say(u.name, '手雷！', 'ok'); }
+    else say(u.name, '距离太远，扔不到', 'no');
+  }
+  if (u.smokeOrder) {
+    u.smokeOrder = false;
+    const t = enemy || (World.marker ? World.marker : null);
+    if (t && u.smokes > 0) { throwGrenade(u, t.x, t.y, 'smoke'); say(u.name, '放烟！', 'ok'); }
+    else say(u.name, '我没带烟雾弹', 'no');
+  }
+
+  /* ---------- 移动 ---------- */
+  if (u.formationFollow) {
+    const p = World.player;
+    const want = nearestCoverSpotNear(p, u);
+    if (dist(u.x, u.y, p.x, p.y) > 62 || (u.moving === false && dist(u.x, u.y, p.x, p.y) > 48)) u.moveGoal = want;
+    else u.moveGoal = null;
+    moveStep(u, dt, 1.05);
+  } else if (u.moveGoal) {
+    moveStep(u, dt, u.state === '撤离' || u.state === '撤退' ? 1.25 : 1);
+    if (u.arrived) {
+      u.arrived = false;
+      if (u.state === '找掩体') { setState(u, '隐蔽'); if (RNG() < 0.5) say(u.name, '已隐蔽', 'ok'); }
+      else if (u.state === '移动') setState(u, '警戒');
+    }
+  } else {
+    // 无指令：轻微移动 / 观察
+    if (!enemy && !u.holdPosition && RNG() < 0.4 * dt) {
+      const a = RNG() * 6.28;
+      u.moveGoal = { x: u.x + Math.cos(a) * rr(20, 50), y: u.y + Math.sin(a) * rr(20, 50) };
+    }
+    if (u.state === '部署' && World.t > CFG.tDeploy) setState(u, '待命');
+  }
+
+  /* ---------- 密码箱：从旁边路过的队员顺手就捡 ---------- */
+  if (!u.boxTask && World.box && !World.box.taken && dist(u.x, u.y, World.box.x, World.box.y) < 22) {
+    World.box.taken = true; World.box.carrier = u; u.carryBox = true;
+    World.stats.boxTaken = true; World.evacArmed = true;
+    say(u.name, '密码箱到手！', 'ok'); toast('密码箱已到手 · 全队撤离');
+  }
+  /* ---------- 撤离点判定 ---------- */
+  /* 只有进入「撤离阶段」（拿到密码箱 / 收到撤退、撤离命令）后才开始计数。
+     早期不加这个门，而 C 点恰好也是部署区之一 —— 开局站在那儿的队员会立刻被算成「已撤离」，
+     既虚增撤离人数，也能直接凑够 6 人误判为成功。 */
+  /* 「撤离」必须是活着的人走到撤离点：早期没有排除阵亡/失能者，
+     而倒地的人常常就倒在撤离点附近 —— 于是「小队全灭」也能凑出 evacCount>=6，
+     与 checkEnd 里 allIn 的判定（只数活人）自相矛盾，还能凭空凑齐胜利条件。 */
+  if (!u.dead && !u.downed && dist(u.x, u.y, World.evac.x, World.evac.y) < 95 && !u.evacuated && World.evacArmed) {
+    u.evacuated = true; World.stats.evacCount++;
+    say(u.name, '已到撤离点！', 'ok');
+    checkEnd();
+  }
+  /* 带密码箱撤离（同样只有活着走到撤离点才算） */
+  if (u.carryBox && u.evacuated && !u.dead && !u.downed) { World.stats.boxEvacuated = true; }
+}
+function nearestCoverSpotNear(p, u) {
+  const a = Math.atan2(u.y - p.y, u.x - p.x) || RNG() * 6.28;
+  for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6, 2.4, -2.4, 3.14]) {
+    const ang = a + off;
+    const x = p.x + Math.cos(ang) * 52, y = p.y + Math.sin(ang) * 52;
+    if (passable(x, y) && !propBlocked(x, y, 6)) return { x, y };
+  }
+  return { x: p.x + rr(-40, 40), y: p.y + rr(-40, 40) };
+}
+
+/* =========================================================================
+   六、玩家
+   ========================================================================= */
+function updatePlayer(u, dt) {
+  if (u.dead) return;
+  u.hitFlash = Math.max(0, u.hitFlash - dt);
+  u.suppression = Math.max(0, u.suppression - dt * 11);
+  u.stateT += dt;
+  if (u.fireCd > 0) u.fireCd -= dt;
+  if (u.reloadT > 0) { u.reloadT -= dt; if (u.reloadT <= 0) finishReload(u); }
+  if (u.downed) {
+    u.downTimer -= dt;
+    if (u.downTimer <= 0) { killUnit(u, null); }
+    else if (u.downTimer < 12 && u.speakCd <= 0) { u.speakCd = 7; say('你', '我快不行了……', 'no'); }
+    else if (World.handover) { /* 副队长会来救 */ }
+    const med = World.units.find(x => x.role === '医疗兵' && !x.dead && !x.downed);
+    if (med && !med.rescueTarget) { med.rescueTarget = u; med.rescueMode = null; say(med.name, '我来了队长！', 'ok'); }
+    return;
+  }
+  if (World.handover && World.handover.rescueTarget === u) { }
+  /* 移动 */
+  let mx = 0, my = 0;
+  if (Input.key['w'] || Input.key['arrowup']) my -= 1;
+  if (Input.key['s'] || Input.key['arrowdown']) my += 1;
+  if (Input.key['a'] || Input.key['arrowleft']) mx -= 1;
+  if (Input.key['d'] || Input.key['arrowright']) mx += 1;
+  if (mx || my) {
+    const L = Math.hypot(mx, my);
+    let sp = 88 * (Input.key['shift'] ? 1.35 : 1);
+    if (u.reloadT > 0) sp *= 0.85;
+    if (inRiver(u.x, u.y) && !onBridge(u.x, u.y)) sp *= 0.55;
+    if (u.suppression > 60) sp *= 0.85;
+    const nx = u.x + mx / L * sp * dt, ny = u.y + my / L * sp * dt;
+    if (passable(nx, u.y) && !propBlocked(nx, u.y, 6)) u.x = nx;
+    if (passable(u.x, ny) && !propBlocked(u.x, ny, 6)) u.y = ny;
+    u.moving = true;
+  } else u.moving = false;
+  /* 朝向鼠标 */
+  const m = Input.mouseWorld;
+  if (m) u.facing = Math.atan2(m.y - u.y, m.x - u.x);
+  /* 射击 */
+  if (Input.mouseDown && u.reloadT <= 0 && u.fireCd <= 0) {
+    if (u.magAmmo <= 0) { tryReload(u); }
+    else {
+      const w = u.wpn;
+      u.fireCd = w.rof;
+      const tgt = { x: u.x + Math.cos(u.facing) * 400, y: u.y + Math.sin(u.facing) * 400 };
+      spawnBullet(u, tgt, spreadMul(u) * 0.85);
+      if (!World.triggered) triggerAmbush('player');
+    }
+  }
+  if (u.magAmmo <= 0 && u.reloadT <= 0) tryReload(u);
+  if (Input.grenade) { Input.grenade = false; if (u.grenades > 0) { throwGrenade(u, u.x + Math.cos(u.facing) * 120, u.y + Math.sin(u.facing) * 120, 'grenade'); } }
+  /* 拾取密码箱 */
+  if (World.box && !World.box.taken && dist(u.x, u.y, World.box.x, World.box.y) < 22) {
+    World.box.taken = true; World.box.carrier = u; u.carryBox = true;
+    World.stats.boxTaken = true;
+    World.evacArmed = true;                       // 拿到密码箱 → 进入撤离阶段
+    say('你', '密码箱到手！', 'ok'); toast('密码箱已到手 · 全队撤离');
+  }
+  /* 撤离（同样要等撤离阶段开始才计数；倒地/阵亡不算撤离人数） */
+  if (!u.dead && !u.downed && dist(u.x, u.y, World.evac.x, World.evac.y) < 95 && !u.evacuated && World.evacArmed) {
+    u.evacuated = true; World.stats.evacCount++; say('你', '我到撤离点了', 'ok'); checkEnd();
+  }
+}
+
+/* =========================================================================
+   七、敌方部队
+   ========================================================================= */
+function allyCentroid() {
+  let x = 0, y = 0, n = 0;
+  for (const u of World.units) { if (u.team === 'ally' && !u.dead && !u.downed) { x += u.x; y += u.y; n++; } }
+  return n ? { x: x / n, y: y / n } : { x: POINTS.A.x, y: POINTS.A.y };
+}
+function dismount(v) {
+  if (v.dismounted) return;
+  v.dismounted = true;
+  const n = v.troopPlan || 0;
+  for (let i = 0; i < n; i++) {
+    const side = RNG() < 0.5 ? 1 : -1;
+    const a = Math.PI / 2 * side + rr(-0.5, 0.5);
+    const isOfficer = (World.officerVeh === v) && !World.officerSpawned && i === 0;
+    if (isOfficer) World.officerSpawned = true;
+    const def = {
+      id: 'e' + v.id + '_' + i, name: isOfficer ? '敌军军官' : (i % 5 === 0 ? '敌机枪手' : '敌步兵'),
+      role: '步兵', group: '', weapon: (i % 5 === 0) ? 'emg' : 'erifle', officer: isOfficer, mg: (i % 5 === 0),
+    };
+    const e = makeUnit(def, v.x + Math.cos(a) * rr(16, 42), v.y + Math.sin(a) * rr(16, 42), 'enemy');
+    e.hp = isOfficer ? 60 : (e.mg ? 42 : 34); e.maxHp = e.hp;
+    e.morale = 72;
+    e.flankRole = RNG() < 0.38 ? 'flank' : 'front';
+    e.flankSide = RNG() < 0.5 ? 1 : -1;
+    e.mount = null;
+    World.units.push(e);
+  }
+  say('全体', v.name + ' 上步兵下车了！', 'no');
+}
+function updateVehicles(dt) {
+  World.convoyProgress = World.convoyProgress || 0;
+  for (let i = 0; i < World.vehicles.length; i++) {
+    const v = World.vehicles[i];
+    v.hitFlash = Math.max(0, v.hitFlash - dt * 3);
+    if (v.destroyed) { v.burning = Math.max(0, v.burning - dt); if (v.fireFxT === undefined) v.fireFxT = 0; v.fireFxT -= dt; if (v.fireFxT <= 0) { v.fireFxT = 0.3; fx({ type: 'fire', x: v.x + rr(-12, 12), y: v.y + rr(-8, 8), life: 0.7, r: rr(8, 16) }); } continue; }
+    /* 前方被毁车辆：向它的车尾靠拢后再停。
+       早期写法是「前方有残骸就立即 speed=0」，结果整列车队被冻结在各自的初始位置、
+       在 1300px 的路面上拉成一条长蛇，伏击圈外的车根本进不了交战距离。 */
+    let wreck = null;
+    for (let j = i - 1; j >= 0; j--) {
+      const o = World.vehicles[j];
+      if (o.destroyed && (!!o.isReinforcement) === (!!v.isReinforcement)) { wreck = o; break; }
+    }
+    if (wreck) v.blockedT = (v.blockedT || 0) + dt;
+    let speed = 0;
+    if (wreck && dist(v.x, v.y, wreck.x, wreck.y) <= 52) {
+      speed = 0;
+      if (!v.dismounted && v.type !== 'tank' && v.blockedT > 1.5) dismount(v);
+    }
+    else if (v.isReinforcement) {
+      /* 增援车队：一路开到伏击圈再下车 */
+      v.stopT += dt;
+      speed = 26;
+      if (!v.dismounted && (v.x < 1500 || v.stopT > 30)) dismount(v);
+    } else if (!World.convoyStarted) {
+      speed = 0;
+    } else if (!World.triggered) {
+      speed = 26;
+    } else if (v.x > CFG.convoyStopX + i * CFG.convoyGap && !v.atZone) {
+      /* 按车序排队停车：第 i 辆车停在自己的位置上，避免全部挤到同一个 x 重叠成一堆 */
+      speed = 26;
+    } else {
+      v.atZone = true;
+      v.stopT += dt;
+      speed = v.stopT > 110 ? v.spec.speed * 0.85 : 0;   // 久攻不下 → 试图冲出西侧
+      if (!v.dismounted && v.type !== 'tank' && speed === 0) {
+        if (v.blockedT > 2.5 || v.stopT > 5.5) dismount(v);
+      }
+    }
+    if (speed > 0) {
+      const nd = v.dist + speed * dt;
+      const p = wayPointAt(nd);
+      const crossBlocked = !World.bridgeAlive && v.x >= CFG.riverX2 && p.x < CFG.riverX2;
+      if (!crossBlocked) v.dist = nd;
+      else v.atBridge = true;
+      v.speed = speed;
+    } else v.speed = 0;
+    const p = wayPointAt(v.dist);
+    v.px = v.x; v.py = v.y; v.x = p.x; v.y = p.y;
+    v.angle = p.a;
+
+    /* 触发遇袭：停车、混乱 */
+    if (World.triggered && !v.isReinforcement && v.stopT > 0 && v.stopT < 0.2 && !v.chaosSaid) { v.chaosSaid = true; }
+    /* 车载武器 */
+    const mg = v.spec.mg;
+    if (mg && World.triggered) {
+      v.wpnCd -= dt;
+      if (v.wpnCd <= 0) {
+        const t = nearestEnemyAt(v.x, v.y, 'enemy', u => !u.dead && !u.downed && !u.spec);
+        if (t && dist(v.x, v.y, t.x, t.y) < mg.range && !losFire(v.x, v.y, t.x, t.y)) {
+          spawnTankMG(v, t); v.wpnCd = mg.rof * ri(2, 5);
+        } else v.wpnCd = 0.6;
+      }
+    }
+    /* 坦克主炮 */
+    if (v.spec.cannon && !v.destroyed) {
+      v.fireCd -= dt;
+      if (v.aimT > 0) {
+        v.aimT -= dt;
+        v.turret = norm(v.turret + angDiff(Math.atan2(v.aimPt.y - v.y, v.aimPt.x - v.x), v.turret) * Math.min(1, dt * 2.2));
+        if (v.aimT <= 0) {
+          spawnShell(v, v.aimPt.x, v.aimPt.y);
+          v.fireCd = SHELL.rof * rr(0.85, 1.2);
+          v.aimPt = null;
+        }
+      } else if (v.fireCd <= 0 && World.triggered) {
+        // 找我方最密集位置
+        let best = null, bn = 1;
+        for (const u of World.units) {
+          if (u.team !== 'ally' || u.dead || u.downed) continue;
+          if (dist(v.x, v.y, u.x, u.y) > 900) continue;
+          if (losFire(v.x, v.y, u.x, u.y)) continue;
+          let n = 0;
+          for (const o of World.units) if (o.team === 'ally' && !o.dead && dist(o.x, o.y, u.x, u.y) < 70) n++;
+          if (n > bn) { bn = n; best = u; }
+        }
+        if (best) {
+          v.aimPt = { x: best.x + rr(-24, 24), y: best.y + rr(-24, 24) };
+          v.aimT = SHELL.warn;
+          setAlert('炮击预警！' + (best.isPlayer ? '目标是你' : '目标：' + best.name) + ' — 全体隐蔽/转移', SHELL.warn);
+          say('全体', '坦克炮口瞄准了我们的阵地！', 'no');
+          World.stats.tankShells = (World.stats.tankShells || 0) + 1;
+        } else v.fireCd = 1.5;
+      }
+    }
+    /* 增援/逃跑判定 */
+    if (!v.destroyed && v.x < 130) {
+      const boxVeh = v.hasBox;
+      if (v.type === 'tank' || (boxVeh && !World.stats.boxTaken)) {
+        World.convoyEscaped = true;
+        endGame('失败', '车队冲过了西侧出口，伏击失败。');
+      }
+    }
+  }
+}
+function updateEnemy(e, dt) {
+  if (e.dead) return;
+  e.stateT += dt;
+  e.hitFlash = Math.max(0, e.hitFlash - dt * 3);
+  if (e.downed) { e.downTimer -= dt; if (e.downTimer <= 0) killUnit(e, null); return; }
+  if (e.mount) return;
+  e.fireCd -= dt; e.aiT -= dt; e.reportCd -= dt;
+  if (e.reloadT > 0) { e.reloadT -= dt; if (e.reloadT <= 0) finishReload(e); }
+  e.suppression = Math.max(0, e.suppression - dt * 9);
+  if (e.aiT <= 0) { e.aiT = 0.22 + RNG() * 0.25; perceive(e); }
+
+  /* 士气崩溃 → 后撤 */
+  if (e.morale < 18 && e.state !== '撤退') { setState(e, '撤退'); e.moraleCheck = true; }
+  if (e.state === '撤退') {
+    if (!e.moveGoal || e.arrived) {
+      const a = Math.atan2(650 - e.y, 100 - e.x) + rr(-0.5, 0.5);
+      e.moveGoal = { x: e.x + Math.cos(a) * 170, y: e.y + Math.sin(a) * 170 };
+    }
+    moveStep(e, dt, 1.25);
+    if (e.seen && RNG() < 0.5) fireAt(e, e.seen, dt);
+    return;
+  }
+  const tgt = e.seen;
+  e.target = tgt;
+  if (tgt) { const a = Math.atan2(tgt.y - e.y, tgt.x - e.x); e.facing = norm(e.facing + angDiff(a, e.facing) * Math.min(1, dt * 6)); }
+  const cen = allyCentroid();
+  e.pushT = (e.pushT || 0) - dt;
+  e.holdT = Math.max(0, (e.holdT || 0) - dt);   // 推进节拍：跃进 → 依托掩体停火 → 再跃进
+  const nearby = tgt && dist(e.x, e.y, tgt.x, tgt.y) < 230;
+  if (e.pushT <= 0) {
+    e.pushT = rr(4, 8);
+    if (e.flankRole === 'flank') {
+      const ang = Math.atan2(cen.y - e.y, cen.x - e.x);
+      e.pushPt = { x: cen.x + Math.cos(ang + e.flankSide * 0.95) * 240, y: cen.y + Math.sin(ang + e.flankSide * 0.95) * 240 };
+    } else {
+      e.pushPt = { x: cen.x + rr(-70, 70), y: cen.y + rr(-70, 70) };
+    }
+  }
+  if (e.suppression > 65 && !e.coverPos && RNG() < 1.5 * dt) {
+    const c = findCover(e.x, e.y, tgt ? tgt.x : e.x, tgt ? tgt.y : e.y + 60, 80);
+    if (c) { e.coverPos = c; e.moveGoal = c; }
+  }
+  if (e.moveGoal) {
+    moveStep(e, dt, 1);
+    if (e.arrived) { e.arrived = false; e.holdT = rr(1.2, 3.2); }
+  } else if (e.holdT > 0) {
+    /* 依托掩体停火：本拍不选新路线，保持火力输出 */
+  } else if (nearby) {
+    e.holdT = rr(1.5, 4);                       // 已在交火距离内 → 停下来对射
+  } else if (e.pushPt && dist(e.x, e.y, e.pushPt.x, e.pushPt.y) > 45) {
+    e.moveGoal = e.pushPt;
+  } else if (tgt && dist(e.x, e.y, tgt.x, tgt.y) > 250) {
+    /* 已到集结点但目标仍远 → 直接朝目标做一次跃进（否则会在集结点无限期停住） */
+    e.moveGoal = { x: tgt.x + rr(-40, 40), y: tgt.y + rr(-40, 40) };
+  } else {
+    e.holdT = rr(2, 5);
+  }
+  if (tgt && !e.mount) {
+    if (e.state === '警戒') setState(e, '战斗');
+    fireAt(e, tgt, dt);
+  } else if (e.state === '战斗') setState(e, '警戒');
+}
+function spawnReinforcement() {
+  World.reinforceDone = true; World.stats.reinforceTriggered = true;
+  say('全体', '东侧出现敌方增援！两卡车步兵！', 'no');
+  setAlert('敌军增援到达 — 全体立即撤退！', 6);
+  toast('敌方增援到达：2 卡车步兵');
+  for (let k = 0; k < 2; k++) {
+    const v = {
+      id: 'rein' + k, type: 'truck', name: '增援卡车' + (k + 1), team: 'enemy',
+      x: 2320 + k * 140, y: 700, angle: Math.PI, speed: 26, baseSpeed: 26,
+      hp: VEHICLES.truck.hp, maxHp: VEHICLES.truck.hp, spec: VEHICLES.truck,
+      len: 66, wid: 30, armor: 0.34, destroyed: false, burning: 0,
+      turret: Math.PI, fireCd: 99, wpnCd: 2, troops: [], capacity: 6, dismountT: -1, dismounted: false,
+      state: 'drive', target: null, line: 1, speedMul: 1, dist: -k * 140, hasBox: false, hitFlash: 0, stopT: 0,
+      troopPlan: 6, isReinforcement: true, blockedT: 0,
+    };
+    World.vehicles.push(v);
+  }
+  World.barrage = true; World.barrageCd = 8;
+  for (const a of allies()) a.morale = clamp(a.morale - 10, 0, 100);
+}
+function updateBarrage(dt) {
+  if (!World.barrage || World.over) return;
+  World.barrageCd -= dt;
+  if (World.barrageCd > 0) return;
+  World.barrageCd = rr(14, 22);
+  const alive = allies().filter(u => !u.downed);
+  if (!alive.length) return;
+  let cx = 0, cy = 0;
+  for (const u of alive) { cx += u.x; cy += u.y; }
+  cx /= alive.length; cy /= alive.length;
+  const tx = cx + rr(-90, 90), ty = cy + rr(-90, 90);
+  World.pendingShells = World.pendingShells || [];
+  World.pendingShells.push({ x: tx, y: ty, t: 2.2 });
+  setAlert('远程炮击来袭 — 全体隐蔽/散开！', 2.2);
+  say('全体', '听！是炮击，要落我们头上！', 'no');
+}
+function updatePendingShells(dt) {
+  if (!World.pendingShells) return;
+  for (let i = World.pendingShells.length - 1; i >= 0; i--) {
+    const s = World.pendingShells[i];
+    s.t -= dt;
+    if (s.t <= 0) { explosion(s.x, s.y, 96, 120, 'enemy', 'shell'); World.pendingShells.splice(i, 1); }
+  }
+}
+
+/* =========================================================================
+   八、关卡流程 / 目标 / 结算
+   ========================================================================= */
+function triggerAmbush(src) {
+  if (World.triggered || World.over) return;
+  World.triggered = true; World.triggerT = World.t;
+  for (const m of World.mines) m.armed = true;
+  World.stats.triggerSrc = src;
+  setAlert('伏击开始！', 2.5);
+  say('全体', src === 'player' ? '队长开火了，打！' : '起爆！', 'sys');
+  World.reinforceT = Math.max(World.reinforceT, World.t + 150);
+}
+function updateMines(dt) {
+  for (const m of World.mines) {
+    if (m.used || !m.armed) continue;
+    for (const v of World.vehicles) {
+      if (v.destroyed || v.team !== 'enemy') continue;
+      if (dist(v.x, v.y, m.x, m.y) < 34) {
+        m.used = true; World.stats.minesUsed++;
+        explosion(m.x, m.y, 74, 60, 'ally', 'mine');
+        damageVehicle(v, 260, 'mine', World.units.find(x => x.id === 'laobai') || World.player);
+        if (World.box && !World.box.taken && v.hasBox) dropBox(v.x, v.y);
+        break;
+      }
+    }
+  }
+}
+function checkObjectives() {
+  const s = World.stats;
+  const o = [
+    { t: '摧毁坦克', done: s.tankKilled, main: true },
+    { t: '获取密码箱', done: s.boxTaken, main: true },
+    { t: '至少 6 人撤离到 ' + World.evac.name, done: s.evacCount >= 6, main: true, extra: '(' + s.evacCount + '/6)' },
+    { t: '摧毁 2 辆装甲车', done: s.apcKilled >= 2, main: false, extra: '(' + s.apcKilled + '/2)' },
+    { t: '救回所有伤员（无阵亡/无遗留）', done: !s.allyDead && downedAllies().length === 0 && World.t > 60, main: false },
+    { t: '不触发敌方增援', done: !s.reinforceTriggered, main: false },
+    { t: '击毙车队指挥官', done: s.officerKilled, main: false },
+  ];
+  World.objState = o;
+  return o;
+}
+function checkEnd() {
+  if (World.over) return;
+  const s = World.stats;
+  if (s.tankKilled && s.boxTaken && s.evacCount >= 6 && !World.convoyEscaped) {
+    endGame('成功', '伏击成功：坦克被摧毁，密码箱到手，' + s.evacCount + ' 人从 ' + World.evac.name + ' 撤离。');
+    return;
+  }
+  const up = World.units.filter(u => u.team === 'ally' && !u.dead && !u.downed);
+  const allIn = up.length > 0 && up.every(u => u.evacuated);
+  if (World.triggered && World.evacArmed && allIn && s.evacCount < 6) {
+    endGame('失败', '撤离人数不足 6 人（实际 ' + s.evacCount + ' 人），任务失败。');
+  }
+}
+function updatePhaseName() {
+  const t = World.t;
+  let n;
+  if (!World.started) n = '情报';
+  else if (t < CFG.tIntel) n = '情报';
+  else if (t < CFG.tDeploy && !World.deployDone) n = '部署';
+  else if (!World.triggered) n = '潜伏';
+  else if (t - World.triggerT < 40) n = '爆发';
+  else if (t - World.triggerT < 130) n = '混战';
+  else n = '清剿';
+  if (World.stats.boxTaken && World.evacCount < 6) n = '撤离';
+  if (t >= World.reinforceT && World.reinforceDone) n = '紧急撤离';
+  World.phaseName = n;
+}
+function updateFlow(dt) {
+  World.t += dt;
+  if (!World.convoyStarted && World.t >= CFG.convoyIn) {
+    World.convoyStarted = true;
+    say('全体', '车队来了，沉住气，等我的口令！', 'sys');
+  }
+  if (World.triggered && World.t - World.triggerT > 3 && !World.mineWarned) {
+    World.mineWarned = true;
+  }
+  if (!World.reinforceDone && World.t >= World.reinforceT && World.triggered) spawnReinforcement();
+  if (World.t >= CFG.missionEnd && !World.over) {
+    endGame('失败', '超过 10 分钟时限，任务失败。');
+  }
+  checkObjectives();
+  if (World.t > 20) checkEnd();
+  updateBarrage(dt);
+  updatePendingShells(dt);
+}
+function endGame(kind, text) {
+  if (World.over) return;
+  World.over = true; World.overKind = kind; World.overText = text;
+  showEndScreen(kind, text);
+}
+function scoreMission() {
+  const s = World.stats;
+  const win = World.overKind === '成功';
+  const dead = s.allyDead || 0;
+  const cas = dead + downedAllies().length;
+  const finishT = World.t;
+  let g = '失败';
+  if (win) {
+    if (cas <= 2 && finishT <= 480 && !s.reinforceTriggered && s.apcKilled >= 2) g = 'S';
+    else if (cas <= 4) g = 'A';
+    else if (cas <= 6) g = 'B';
+    else g = 'C';
+  }
+  return { g, cas, dead, win };
+}
+
+/* =========================================================================
+   九、渲染
+   ========================================================================= */
+const CV = document.getElementById('game');
+const CTX = CV.getContext('2d');
+const MM = document.getElementById('minimap');
+const MCTX = MM.getContext('2d');
+let terrain = null;
+const view = { w: 1280, h: 720, dpr: 1 };
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  view.dpr = dpr;
+  const w = window.innerWidth, h = window.innerHeight;
+  CV.width = Math.floor(w * dpr); CV.height = Math.floor(h * dpr);
+  CV.style.width = w + 'px'; CV.style.height = h + 'px';
+  view.w = w; view.h = h;
+  MM.width = 262 * 2; MM.height = 150 * 2;
+}
+window.addEventListener('resize', resize);
+
+function buildTerrain() {
+  const c = document.createElement('canvas');
+  c.width = CFG.W; c.height = CFG.H;
+  const g = c.getContext('2d');
+  const R = mulberry32(12345);
+  /* 草地底色 */
+  const grd = g.createLinearGradient(0, 0, 0, CFG.H);
+  grd.addColorStop(0, '#7f8d5c'); grd.addColorStop(0.5, '#8b9663'); grd.addColorStop(1, '#79855a');
+  g.fillStyle = grd; g.fillRect(0, 0, CFG.W, CFG.H);
+  for (let i = 0; i < 900; i++) {
+    const x = R() * CFG.W, y = R() * CFG.H, r = 14 + R() * 54;
+    g.fillStyle = 'rgba(' + (R() < 0.5 ? '104,116,74' : '146,156,108') + ',' + (0.10 + R() * 0.16).toFixed(2) + ')';
+    g.beginPath(); g.ellipse(x, y, r, r * (0.5 + R() * 0.6), R() * 3.14, 0, 6.29); g.fill();
+  }
+  /* 小河（南北向） */
+  g.save();
+  g.beginPath();
+  g.moveTo(CFG.riverX1, 0);
+  for (let y = 0; y <= CFG.H; y += 40) g.lineTo(CFG.riverX1 + Math.sin(y / 130) * 12, y);
+  for (let y = CFG.H; y >= 0; y -= 40) g.lineTo(CFG.riverX2 + Math.sin(y / 110 + 1) * 12, y);
+  g.closePath();
+  g.fillStyle = '#5d86a8'; g.fill();
+  g.strokeStyle = 'rgba(70,105,130,.6)'; g.lineWidth = 3; g.stroke();
+  g.clip();
+  for (let i = 0; i < 90; i++) {
+    const y = R() * CFG.H;
+    g.strokeStyle = 'rgba(210,230,240,' + (0.06 + R() * 0.12).toFixed(2) + ')';
+    g.lineWidth = 1 + R() * 2;
+    g.beginPath(); g.moveTo(CFG.riverX1, y); g.lineTo(CFG.riverX2, y + R() * 8 - 4); g.stroke();
+  }
+  g.restore();
+  /* 河谷砾石滩 */
+  g.fillStyle = 'rgba(176,168,142,.45)';
+  g.fillRect(CFG.riverX1 - 16, 0, 16, CFG.H);
+  g.fillRect(CFG.riverX2, 0, 16, CFG.H);
+  /* 公路（东→西） */
+  const drawRoad = (w, color) => {
+    g.strokeStyle = color; g.lineWidth = w; g.lineJoin = 'round'; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(ROAD_PATH[0][0], ROAD_PATH[0][1]);
+    for (let i = 1; i < ROAD_PATH.length; i++) g.lineTo(ROAD_PATH[i][0], ROAD_PATH[i][1]);
+    g.stroke();
+  };
+  drawRoad(CFG.roadBot - CFG.roadTop + 26, '#8d8468');
+  drawRoad(CFG.roadBot - CFG.roadTop, '#b3a985');
+  drawRoad(20, 'rgba(196,186,152,.55)');
+  /* 车辙 */
+  g.strokeStyle = 'rgba(120,110,86,.45)'; g.lineWidth = 3;
+  for (const off of [-22, 22]) {
+    g.beginPath();
+    for (let i = 0; i < CONVOY_WAY.length; i++) { const p = CONVOY_WAY[i]; if (i === 0) g.moveTo(p.x, p.y + off); else g.lineTo(p.x, p.y + off); }
+    g.stroke();
+  }
+  /* 土路支线 */
+  g.strokeStyle = 'rgba(160,150,120,.5)'; g.lineWidth = 10; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(880, 660); g.quadraticCurveTo(830, 780, 800, 900); g.stroke();
+  g.beginPath(); g.moveTo(1080, 640); g.quadraticCurveTo(1090, 480, 1090, 360); g.stroke();
+  g.beginPath(); g.moveTo(360, 660); g.quadraticCurveTo(330, 780, 320, 880); g.stroke();
+  /* 静态掩体 */
+  for (const p of World.props) drawProp(g, p, true);
+  /* 场地点位字母 */
+  return c;
+}
+function drawProp(g, p, staticMode) {
+  if (p.destroyed) return;
+  switch (p.type) {
+    case 'rock': {
+      g.save(); g.translate(p.x, p.y);
+      if (!p.pts) {
+        p.pts = []; const n = 7;
+        for (let i = 0; i < n; i++) { const a = i / n * 6.283 + RNG() * 0.12; const rr2 = p.r * (0.78 + RNG() * 0.36); p.pts.push([Math.cos(a) * rr2, Math.sin(a) * rr2 * 0.85]); }
+      }
+      g.fillStyle = 'rgba(40,44,32,.30)'; g.beginPath();
+      p.pts.forEach((q, i) => { const vx = q[0] + 3, vy = q[1] + 4; i ? g.lineTo(vx, vy) : g.moveTo(vx, vy); }); g.closePath(); g.fill();
+      const gr = g.createLinearGradient(-p.r, -p.r, p.r, p.r);
+      gr.addColorStop(0, '#a8a89e'); gr.addColorStop(1, '#7a7a72');
+      g.fillStyle = gr; g.beginPath();
+      p.pts.forEach((q, i) => { i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(60,60,54,.7)'; g.lineWidth = 1.4; g.stroke();
+      g.restore(); break;
+    }
+    case 'tree': {
+      g.save(); g.translate(p.x, p.y);
+      g.fillStyle = 'rgba(30,40,24,.28)'; g.beginPath(); g.ellipse(3, 4, p.r * 1.05, p.r * 0.9, 0, 0, 6.29); g.fill();
+      g.fillStyle = '#4e6b39'; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.fill();
+      g.fillStyle = '#5f7e42'; g.beginPath(); g.arc(-p.r * 0.22, -p.r * 0.22, p.r * 0.62, 0, 6.29); g.fill();
+      g.strokeStyle = 'rgba(34,48,26,.8)'; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.stroke();
+      g.restore(); break;
+    }
+    case 'bush': {
+      g.save(); g.translate(p.x, p.y);
+      g.fillStyle = 'rgba(96,116,64,.9)';
+      for (const q of [[-p.r * .5, 0], [p.r * .5, 0], [0, -p.r * .35], [0, p.r * .4]]) { g.beginPath(); g.arc(q[0], q[1], p.r * 0.62, 0, 6.29); g.fill(); }
+      g.restore(); break;
+    }
+    case 'trench': {
+      g.save(); g.translate(p.x, p.y);
+      g.fillStyle = 'rgba(78,70,50,.85)';
+      g.beginPath(); g.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 8); g.fill();
+      g.strokeStyle = 'rgba(196,182,144,.85)'; g.lineWidth = 3; g.setLineDash([]);
+      g.beginPath(); g.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 8); g.stroke();
+      g.restore(); break;
+    }
+    case 'wall': {
+      g.save(); g.translate(p.x, p.y);
+      g.fillStyle = 'rgba(40,40,34,.3)'; g.beginPath(); g.roundRect(-p.r + 3, -p.r * 0.7 + 4, p.r * 2, p.r * 1.4, 4); g.fill();
+      const gr = g.createLinearGradient(0, -p.r, 0, p.r);
+      gr.addColorStop(0, '#b0a892'); gr.addColorStop(1, '#8a8270');
+      g.fillStyle = gr; g.beginPath(); g.roundRect(-p.r, -p.r * 0.7, p.r * 2, p.r * 1.4, 4); g.fill();
+      g.strokeStyle = 'rgba(60,58,48,.8)'; g.lineWidth = 1.5; g.stroke();
+      g.restore(); break;
+    }
+    case 'barrel': {
+      g.save(); g.translate(p.x, p.y);
+      g.fillStyle = 'rgba(40,34,26,.35)'; g.beginPath(); g.arc(2, 3, p.r + 1, 0, 6.29); g.fill();
+      g.fillStyle = '#c8762c'; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.fill();
+      g.strokeStyle = '#f0d090'; g.lineWidth = 1.6; g.beginPath(); g.arc(0, 0, p.r * 0.6, 0, 6.29); g.stroke();
+      g.strokeStyle = 'rgba(80,40,10,.8)'; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, p.r, 0, 6.29); g.stroke();
+      g.restore(); break;
+    }
+  }
+}
+
+function camFollow(dt) {
+  const p = World.player;
+  const tx = clamp((p ? p.x : CFG.W / 2) - view.w / 2, 0, Math.max(0, CFG.W - view.w));
+  const ty = clamp((p ? p.y : CFG.H / 2) - view.h / 2, 0, Math.max(0, CFG.H - view.h));
+  World.cam.x = lerp(World.cam.x, tx, Math.min(1, dt * 5));
+  World.cam.y = lerp(World.cam.y, ty, Math.min(1, dt * 5));
+  if (view.w >= CFG.W) World.cam.x = (CFG.W - view.w) / 2;
+  if (view.h >= CFG.H) World.cam.y = (CFG.H - view.h) / 2;
+}
+
+function draw() {
+  const g = CTX;
+  g.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  g.clearRect(0, 0, view.w, view.h);
+  g.fillStyle = '#3c4430'; g.fillRect(0, 0, view.w, view.h);
+  g.save();
+  g.translate(-World.cam.x, -World.cam.y);
+  if (terrain) g.drawImage(terrain, 0, 0);
+
+  /* 桥梁（动态，可被炸毁） */
+  drawBridge(g);
+
+  /* 部署区 */
+  if (World.phase === 'DEPLOY' && !World.deployDone) {
+    g.save();
+    g.setLineDash([8, 6]); g.lineWidth = 2;
+    for (const z of DEPLOY_ZONES) {
+      g.strokeStyle = 'rgba(180,220,255,.55)'; g.fillStyle = 'rgba(120,190,255,.10)';
+      g.beginPath(); g.roundRect(z.x1, z.y1, z.x2 - z.x1, z.y2 - z.y1, 10); g.fill(); g.stroke();
+      g.fillStyle = 'rgba(200,230,255,.9)'; g.font = '12px "Microsoft YaHei",sans-serif';
+      g.fillText(z.name, z.x1 + 10, z.y1 + 18);
+    }
+    g.restore();
+  }
+
+  /* 弹坑 / 血迹 */
+  for (const d of World.decals) {
+    g.fillStyle = d.c; g.beginPath(); g.arc(d.x, d.y, d.r, 0, 6.29); g.fill();
+  }
+
+  /* 点位标记 */
+  g.font = '11px "Microsoft YaHei",sans-serif';
+  for (const k in POINTS) {
+    const p = POINTS[k];
+    const isEvac = World.evac.key === k;
+    g.save();
+    g.strokeStyle = isEvac ? 'rgba(120,255,180,.85)' : 'rgba(255,255,255,.35)';
+    g.lineWidth = 1.6;
+    g.beginPath(); g.arc(p.x, p.y, isEvac ? 88 + Math.sin(World.t * 3) * 6 : 40, 0, 6.29); g.stroke();
+    if (isEvac) { g.fillStyle = 'rgba(120,255,180,.10)'; g.beginPath(); g.arc(p.x, p.y, 88, 0, 6.29); g.fill(); }
+    g.fillStyle = isEvac ? '#8dffc0' : 'rgba(255,255,255,.55)';
+    g.font = 'bold 15px "Microsoft YaHei",sans-serif';
+    g.fillText(p.short, p.x - 4, p.y - 46);
+    g.font = '10px "Microsoft YaHei",sans-serif';
+    g.fillText(p.name.slice(2) + (isEvac ? ' ▼撤离点' : ''), p.x - 26, p.y - 32);
+    g.restore();
+  }
+
+  /* 地雷 */
+  for (const m of World.mines) {
+    if (m.used) continue;
+    g.strokeStyle = m.armed ? 'rgba(255,180,60,.9)' : 'rgba(255,255,255,.35)';
+    g.lineWidth = 1.4;
+    g.beginPath(); g.arc(m.x, m.y, 9, 0, 6.29); g.stroke();
+    g.beginPath(); g.moveTo(m.x - 6, m.y); g.lineTo(m.x + 6, m.y); g.moveTo(m.x, m.y - 6); g.lineTo(m.x, m.y + 6); g.stroke();
+  }
+
+  /* 密码箱 */
+  if (World.box && !World.box.taken) {
+    g.save(); g.translate(World.box.x, World.box.y);
+    g.fillStyle = 'rgba(255,215,80,.95)'; g.strokeStyle = '#5a4a10'; g.lineWidth = 1.5;
+    g.beginPath(); g.rect(-7, -5, 14, 10); g.fill(); g.stroke();
+    g.fillStyle = '#5a4a10'; g.fillRect(-8, -1.5, 16, 2);
+    g.strokeStyle = 'rgba(255,215,80,.7)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, 16 + Math.sin(World.t * 4) * 3, 0, 6.29); g.stroke();
+    g.restore();
+  }
+
+  /* 掩体（动态部分：油桶等） */
+  for (const p of World.props) if (p.type === 'barrel') drawProp(g, p, false);
+
+  /* 烟雾 */
+  for (const s of World.smokes) {
+    const a = clamp(1 - s.t / s.life, 0, 1) * 0.85;
+    g.fillStyle = 'rgba(226,226,222,' + a.toFixed(2) + ')';
+    for (let i = 0; i < 5; i++) {
+      const a2 = i / 5 * 6.283 + s.t * 0.3;
+      g.beginPath(); g.arc(s.x + Math.cos(a2) * s.r * 0.42, s.y + Math.sin(a2) * s.r * 0.42, s.r * 0.62, 0, 6.29); g.fill();
+    }
+  }
+
+  /* 车辆 */
+  for (const v of World.vehicles) drawVehicle(g, v);
+
+  /* 步兵：先画倒地/阵亡 */
+  for (const u of World.units) if (u.dead || u.downed) drawUnit(g, u);
+  for (const u of World.units) if (!u.dead && !u.downed) drawUnit(g, u);
+
+  /* 弹丸 */
+  for (const p of World.projectiles) drawProjectile(g, p);
+
+  /* 特效 */
+  for (const f of World.fx) drawFx(g, f);
+
+  /* 坦克炮瞄准预警 */
+  for (const v of World.vehicles) {
+    if (v.aimPt && v.aimT > 0) {
+      const k = 1 - v.aimT / SHELL.warn;
+      g.save();
+      g.strokeStyle = 'rgba(255,70,50,.95)'; g.lineWidth = 2.4; g.setLineDash([7, 5]);
+      g.beginPath(); g.arc(v.aimPt.x, v.aimPt.y, SHELL.splash * (1.15 - k * 0.15), 0, 6.29); g.stroke();
+      g.fillStyle = 'rgba(255,60,40,' + (0.10 + k * 0.22).toFixed(2) + ')'; g.fill();
+      g.setLineDash([]); g.restore();
+    }
+  }
+  /* 遥控炮击落点预警 */
+  if (World.pendingShells) for (const s of World.pendingShells) {
+    g.save();
+    g.strokeStyle = 'rgba(255,120,40,.95)'; g.lineWidth = 2.2; g.setLineDash([6, 6]);
+    g.beginPath(); g.arc(s.x, s.y, 96 * (1.1 - s.t / 2.2 * 0.2), 0, 6.29); g.stroke();
+    g.setLineDash([]); g.restore();
+  }
+
+  /* 准星标记点 */
+  if (World.marker) {
+    const m = World.marker;
+    g.save(); g.translate(m.x, m.y);
+    g.strokeStyle = 'rgba(255,215,80,.95)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, 14 + Math.sin(World.t * 5) * 2, 0, 6.29); g.stroke();
+    g.beginPath(); g.moveTo(-20, 0); g.lineTo(-8, 0); g.moveTo(8, 0); g.lineTo(20, 0);
+    g.moveTo(0, -20); g.lineTo(0, -8); g.moveTo(0, 8); g.lineTo(0, 20); g.stroke();
+    g.restore();
+  }
+  /* 玩家准星 */
+  const p = World.player;
+  if (p && !p.dead) {
+    g.save();
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + Math.cos(p.facing) * (p.wpn.range * 0.55), p.y + Math.sin(p.facing) * (p.wpn.range * 0.55)); g.stroke();
+    g.restore();
+  }
+
+  g.restore();
+
+  /* 天气叠加 */
+  if (World.weather === 'night') {
+    const px = (p ? p.x : CFG.W / 2) - World.cam.x, py = (p ? p.y : CFG.H / 2) - World.cam.y;
+    const rg = g.createRadialGradient(px, py, 40, px, py, Math.max(view.w, view.h) * 0.55);
+    rg.addColorStop(0, 'rgba(6,10,24,0.35)'); rg.addColorStop(1, 'rgba(4,8,20,0.86)');
+    g.fillStyle = rg; g.fillRect(0, 0, view.w, view.h);
+  } else if (World.weather === 'rain') {
+    g.fillStyle = 'rgba(40,60,80,.16)'; g.fillRect(0, 0, view.w, view.h);
+    g.strokeStyle = 'rgba(200,220,240,.30)'; g.lineWidth = 1;
+    for (let i = 0; i < 130; i++) {
+      const x = (i * 137 + World.t * 320) % view.w, y = (i * 71 + World.t * 900) % view.h;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x - 3, y + 13); g.stroke();
+    }
+  }
+}
+function drawBridge(g) {
+  const y1 = CFG.bridgeY1, y2 = CFG.bridgeY2;
+  if (World.bridgeAlive) {
+    g.fillStyle = '#a89778'; g.fillRect(CFG.riverX1 - 12, y1, CFG.riverX2 - CFG.riverX1 + 24, y2 - y1);
+    g.strokeStyle = 'rgba(90,80,60,.75)'; g.lineWidth = 2;
+    for (let x = CFG.riverX1 - 12; x < CFG.riverX2 + 12; x += 14) { g.beginPath(); g.moveTo(x, y1); g.lineTo(x, y2); g.stroke(); }
+    g.strokeStyle = 'rgba(70,60,44,.9)'; g.lineWidth = 3; g.strokeRect(CFG.riverX1 - 12, y1, CFG.riverX2 - CFG.riverX1 + 24, y2 - y1);
+  } else {
+    g.fillStyle = 'rgba(60,54,44,.9)';
+    g.fillRect(CFG.riverX1 - 12, y1, 26, y2 - y1);
+    g.fillRect(CFG.riverX2 - 14, y1, 26, y2 - y1);
+    g.fillStyle = 'rgba(120,110,92,.75)';
+    for (let i = 0; i < 7; i++) g.fillRect(CFG.riverX1 + 4 + i * 8, y1 + 20 + Math.sin(i * 2 + World.t) * 6, 7, 12);
+  }
+}
+function drawVehicle(g, v) {
+  g.save(); g.translate(v.x, v.y);
+  if (v.destroyed) {
+    g.rotate(v.angle);
+    g.fillStyle = '#3b352c'; g.beginPath(); g.roundRect(-v.len / 2, -v.wid / 2, v.len, v.wid, 4); g.fill();
+    g.strokeStyle = 'rgba(20,16,12,.9)'; g.lineWidth = 2; g.stroke();
+    g.restore(); return;
+  }
+  g.rotate(v.angle);
+  g.fillStyle = 'rgba(20,18,14,.35)'; g.beginPath(); g.roundRect(-v.len / 2 + 3, -v.wid / 2 + 4, v.len, v.wid, 4); g.fill();
+  const col = v.type === 'tank' ? '#5a6348' : v.type === 'apc' ? '#5f6350' : v.type === 'truck' ? '#6b6248' : '#66603f';
+  g.fillStyle = v.hitFlash > 0 ? '#c07050' : col;
+  g.beginPath(); g.roundRect(-v.len / 2, -v.wid / 2, v.len, v.wid, 4); g.fill();
+  g.strokeStyle = 'rgba(28,30,20,.9)'; g.lineWidth = 1.6; g.stroke();
+  /* 车轮 */
+  g.fillStyle = 'rgba(24,22,18,.85)';
+  if (v.type === 'tank') {
+    g.fillRect(-v.len / 2 + 2, -v.wid / 2 - 4, v.len - 4, 5);
+    g.fillRect(-v.len / 2 + 2, v.wid / 2 - 1, v.len - 4, 5);
+  } else {
+    for (const sx of [-0.30, 0.22]) {
+      g.fillRect(v.len * sx, -v.wid / 2 - 3, v.len * 0.16, 4);
+      g.fillRect(v.len * sx, v.wid / 2 - 1, v.len * 0.16, 4);
+    }
+  }
+  /* 炮塔 */
+  if (v.type === 'tank') {
+    g.save(); g.rotate(v.turret - v.angle);
+    g.fillStyle = '#4d5540'; g.beginPath(); g.arc(0, 0, v.wid * 0.34, 0, 6.29); g.fill();
+    g.strokeStyle = 'rgba(24,26,18,.9)'; g.stroke();
+    g.fillStyle = '#3d4433'; g.fillRect(0, -2.6, v.len * 0.62, 5.2);
+    g.restore();
+  } else if (v.type === 'apc') {
+    g.save(); g.rotate(v.turret - v.angle);
+    g.fillStyle = '#4d5540'; g.beginPath(); g.arc(-6, 0, 7, 0, 6.29); g.fill();
+    g.fillStyle = '#3d4433'; g.fillRect(0, -1.8, 22, 3.6);
+    g.restore();
+  }
+  g.restore();
+  /* 血条 */
+  if (v.hp < v.maxHp) {
+    const w = v.len, x = v.x - w / 2, y = v.y - v.wid / 2 - 12;
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x, y, w, 4);
+    g.fillStyle = v.hp / v.maxHp > 0.5 ? '#e0b040' : '#e05050';
+    g.fillRect(x, y, w * clamp(v.hp / v.maxHp, 0, 1), 4);
+  }
+  if (v.type === 'tank' && !v.destroyed) {
+    g.font = 'bold 10px "Microsoft YaHei",sans-serif'; g.fillStyle = '#ffd166';
+    g.fillText('坦克', v.x - 12, v.y - v.wid / 2 - 16);
+  }
+}
+function drawUnit(g, u) {
+  const ally = u.team === 'ally';
+  g.save(); g.translate(u.x, u.y);
+  if (u.dead) {
+    g.rotate(u.facing);
+    g.fillStyle = 'rgba(40,34,30,.55)'; g.beginPath(); g.ellipse(0, 0, 8, 5, 0, 0, 6.29); g.fill();
+    g.restore(); return;
+  }
+  if (u.downed) {
+    g.fillStyle = 'rgba(255,60,60,.9)'; g.beginPath(); g.arc(0, 0, 5.6, 0, 6.29); g.fill();
+    g.strokeStyle = 'rgba(255,60,60,.7)'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(0, 0, 9 + Math.sin(World.t * 6) * 2, 0, 6.29); g.stroke();
+    g.fillStyle = '#ffdede'; g.font = '10px "Microsoft YaHei",sans-serif'; g.fillText('伤员', -10, -13);
+    g.restore(); return;
+  }
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.arc(1.5, 2, 5.6, 0, 6.29); g.fill();
+  const col = u.hitFlash > 0 ? '#ffffff' : ally ? (u.isPlayer ? '#79e0ff' : '#4f9bd6') : (u.officer ? '#ff9a3c' : '#c8503c');
+  g.fillStyle = col; g.beginPath(); g.arc(0, 0, 5.4, 0, 6.29); g.fill();
+  g.strokeStyle = ally ? 'rgba(10,30,40,.9)' : 'rgba(40,10,10,.9)'; g.lineWidth = 1.4; g.stroke();
+  /* 朝向 */
+  g.strokeStyle = ally ? 'rgba(220,240,255,.95)' : 'rgba(255,210,190,.95)'; g.lineWidth = 1.8;
+  g.beginPath(); g.moveTo(Math.cos(u.facing) * 4, Math.sin(u.facing) * 4);
+  g.lineTo(Math.cos(u.facing) * 11, Math.sin(u.facing) * 11); g.stroke();
+  /* 角色标记 */
+  g.font = 'bold 8px "Microsoft YaHei",sans-serif'; g.textAlign = 'center';
+  if (ally) {
+    if (u.role === '医疗兵') { g.fillStyle = '#fff'; g.fillRect(-1, -8.5, 2, 6); g.fillRect(-3, -6.5, 6, 2); }
+    else if (u.role === '反坦克手') { g.fillStyle = '#ffd166'; g.fillRect(-4, -8, 8, 2.4); }
+    else if (u.role === '狙击手') { g.fillStyle = '#c9e2ff'; g.beginPath(); g.arc(0, -8, 2, 0, 6.29); g.fill(); }
+    else if (u.role === '爆破手') { g.fillStyle = '#ffa94d'; g.fillRect(-2, -10, 4, 4); }
+  } else if (u.officer) { g.fillStyle = '#ffd166'; g.fillText('★', 0, -9); }
+  g.textAlign = 'left';
+  g.restore();
+  /* 名称 / 状态 */
+  if (ally || u.officer) {
+    g.font = '10px "Microsoft YaHei",sans-serif';
+    g.fillStyle = ally ? 'rgba(214,236,255,.95)' : 'rgba(255,190,120,.95)';
+    g.fillText(ally ? u.name : (u.officer ? '军官' : ''), u.x + 8, u.y - 6);
+  }
+  if (u.carryBox) { g.fillStyle = '#ffd166'; g.fillRect(u.x - 3, u.y - 14, 6, 5); }
+  /* 血条 */
+  if (ally && u.hp < u.maxHp) {
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(u.x - 9, u.y + 8, 18, 3);
+    g.fillStyle = u.hp > 50 ? '#63d471' : u.hp > 25 ? '#e0b040' : '#ff5a5a';
+    g.fillRect(u.x - 9, u.y + 8, 18 * clamp(u.hp / u.maxHp, 0, 1), 3);
+  }
+  /* 压制指示 */
+  if (ally && u.suppression > 55) {
+    g.strokeStyle = 'rgba(255,90,60,.85)'; g.lineWidth = 1.6;
+    g.beginPath(); g.arc(u.x, u.y, 10, 0, 6.29); g.stroke();
+  }
+  if (u === World.rangedSel) {
+    g.strokeStyle = 'rgba(255,215,80,.95)'; g.lineWidth = 1.6;
+    g.beginPath(); g.arc(u.x, u.y, 12, 0, 6.29); g.stroke();
+  }
+}
+function drawProjectile(g, p) {
+  if (p.type === 'grenade' || p.type === 'smokeG') {
+    g.fillStyle = p.color; g.beginPath(); g.arc(p.x, p.y, 3.2, 0, 6.29); g.fill();
+    return;
+  }
+  g.strokeStyle = p.color; g.lineWidth = p.type === 'bullet' ? 1.3 : 2.4;
+  g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 0.016, p.y - p.vy * 0.016); g.stroke();
+  if (p.type === 'rocket' || p.type === 'shell') {
+    g.strokeStyle = 'rgba(255,180,80,.35)'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(p.x - p.vx * 0.05, p.y - p.vy * 0.05); g.lineTo(p.x, p.y); g.stroke();
+  }
+}
+function drawFx(g, f) {
+  const k = clamp(f.t / f.life, 0, 1);
+  if (f.type === 'flash') {
+    g.save(); g.translate(f.x, f.y); g.rotate(f.a || 0);
+    g.fillStyle = 'rgba(255,235,160,' + (1 - k) * 0.9 + ')';
+    g.beginPath(); g.moveTo(0, -2.5); g.lineTo((f.big ? 26 : 13) * (1 - k * 0.4), 0); g.lineTo(0, 2.5); g.closePath(); g.fill();
+    g.restore();
+  } else if (f.type === 'boom') {
+    const r = f.r * (0.35 + k * 0.75);
+    const a = 1 - k;
+    const rg = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+    rg.addColorStop(0, 'rgba(255,255,210,' + (a * 0.95) + ')');
+    rg.addColorStop(0.35, 'rgba(255,170,60,' + (a * 0.85) + ')');
+    rg.addColorStop(1, 'rgba(90,60,30,0)');
+    g.fillStyle = rg; g.beginPath(); g.arc(f.x, f.y, r, 0, 6.29); g.fill();
+  } else if (f.type === 'fire') {
+    g.fillStyle = 'rgba(255,' + Math.round(140 - k * 80) + ',40,' + (1 - k) * 0.75 + ')';
+    g.beginPath(); g.arc(f.x, f.y - k * 14, f.r * (1 - k * 0.5), 0, 6.29); g.fill();
+  } else if (f.type === 'spark') {
+    g.fillStyle = f.blood ? 'rgba(200,60,50,' + (1 - k) * 0.9 + ')' : 'rgba(255,230,150,' + (1 - k) * 0.9 + ')';
+    for (let i = 0; i < 4; i++) {
+      const a = i * 1.7 + f.x * 0.1;
+      g.beginPath(); g.arc(f.x + Math.cos(a) * k * 9, f.y + Math.sin(a) * k * 9, 1.6 * (1 - k), 0, 6.29); g.fill();
+    }
+  }
+}
+
+/* --------------------------------------------------------------- 小地图 */
+function drawMinimap() {
+  const g = MCTX;
+  const W = MM.width, H = MM.height;
+  const sx = W / CFG.W, sy = H / CFG.H;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = '#5d6a45'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#5d86a8'; g.fillRect(CFG.riverX1 * sx, 0, (CFG.riverX2 - CFG.riverX1) * sx, H);
+  g.strokeStyle = '#b3a985'; g.lineWidth = Math.max(4, (CFG.roadBot - CFG.roadTop) * sy);
+  g.beginPath(); g.moveTo(ROAD_PATH[0][0] * sx, ROAD_PATH[0][1] * sy);
+  for (let i = 1; i < ROAD_PATH.length; i++) g.lineTo(ROAD_PATH[i][0] * sx, ROAD_PATH[i][1] * sy);
+  g.stroke();
+  /* 视野框 */
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.5;
+  g.strokeRect(World.cam.x * sx, World.cam.y * sy, view.w * sx, view.h * sy);
+  /* 撤离点 */
+  g.strokeStyle = '#8dffc0'; g.lineWidth = 2;
+  g.beginPath(); g.arc(World.evac.x * sx, World.evac.y * sy, 7, 0, 6.29); g.stroke();
+  /* 点位 */
+  g.font = 'bold 11px "Microsoft YaHei",sans-serif';
+  for (const k in POINTS) {
+    const p = POINTS[k];
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(p.x * sx, p.y * sy, 2.4, 0, 6.29); g.fill();
+    g.fillStyle = 'rgba(240,240,230,.85)'; g.fillText(k, p.x * sx + 4, p.y * sy - 3);
+  }
+  /* 地雷 / 密码箱 */
+  for (const m of World.mines) { if (!m.used) { g.fillStyle = m.armed ? '#ffb400' : '#888'; g.beginPath(); g.arc(m.x * sx, m.y * sy, 2.5, 0, 6.29); g.fill(); } }
+  if (World.box && !World.box.taken) { g.fillStyle = '#ffd166'; g.beginPath(); g.arc(World.box.x * sx, World.box.y * sy, 3.4, 0, 6.29); g.fill(); }
+  /* 车辆 */
+  for (const v of World.vehicles) {
+    g.fillStyle = v.destroyed ? '#4a4640' : v.type === 'tank' ? '#e8b84b' : '#d06a4a';
+    g.beginPath(); g.arc(v.x * sx, v.y * sy, v.type === 'tank' ? 4.4 : 3.2, 0, 6.29); g.fill();
+  }
+  /* 敌人 */
+  g.fillStyle = '#ff5b4a';
+  for (const u of World.units) if (u.team === 'enemy' && !u.dead && !u.mount) { g.beginPath(); g.arc(u.x * sx, u.y * sy, 2, 0, 6.29); g.fill(); }
+  /* 我方 */
+  for (const u of World.units) {
+    if (u.team !== 'ally' || u.dead) continue;
+    g.fillStyle = u.downed ? '#ff9a9a' : u.isPlayer ? '#79e0ff' : '#5fa8e0';
+    g.beginPath(); g.arc(u.x * sx, u.y * sy, u.isPlayer ? 3.2 : 2.6, 0, 6.29); g.fill();
+  }
+  /* 标记 */
+  if (World.marker) {
+    g.strokeStyle = '#ffd166'; g.lineWidth = 2;
+    g.beginPath(); g.arc(World.marker.x * sx, World.marker.y * sy, 5, 0, 6.29); g.stroke();
+  }
+  /* 炮弹预警 */
+  if (World.pendingShells) for (const s of World.pendingShells) { g.strokeStyle = '#ff7a30'; g.lineWidth = 1.5; g.beginPath(); g.arc(s.x * sx, s.y * sy, 6, 0, 6.29); g.stroke(); }
+}
+
+/* =========================================================================
+   十、HUD
+   ========================================================================= */
+const $ = id => document.getElementById(id);
+const ACTION_BY_ID = {}; ACTIONS.forEach(a => ACTION_BY_ID[a.id] = a);
+
+function fmtTime(t) {
+  t = Math.max(0, Math.floor(t));
+  return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+}
+function toast(txt) {
+  const el = $('toast');
+  el.textContent = txt; el.style.opacity = '1';
+  clearTimeout(el._t); el._t = setTimeout(() => el.style.opacity = '0', 1600);
+}
+function setAlert(txt, dur) {
+  const el = $('alert');
+  el.textContent = txt; el.style.display = 'block';
+  World.alertT = dur || 2.5;
+}
+let subVer = -1;
+function renderSubs() {
+  subVer++;
+  const el = $('subs');
+  el.innerHTML = World.subs.map(s =>
+    '<div class="ln ' + (s.cls === 'sys' || s.cls === 'cmd' ? 'sys' : '') + '">' +
+    '<span class="who">' + esc(s.who) + '：</span><span class="' + (s.cls || '') + '">' + esc(s.text) + '</span></div>'
+  ).join('');
+}
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+let hudT = 0;
+function updateHUD(dt) {
+  if (World.alertT > 0) { World.alertT -= dt; if (World.alertT <= 0) $('alert').style.display = 'none'; }
+  hudT -= dt;
+  if (hudT > 0) { updateSubTtl(dt); return; }
+  hudT = 0.2;
+  const s = World.stats;
+  $('mTime').textContent = fmtTime(World.t);
+  $('mPhase').textContent = World.phaseName || '情报';
+  const alive = World.units.filter(u => u.team === 'ally' && !u.dead).length;
+  $('mAlive').textContent = alive + (downedAllies().length ? '(-' + downedAllies().length + ')' : '');
+  $('mKill').textContent = s.enemyDead + (s.tankKilled ? ' +坦克' : '');
+  $('mWeather').textContent = (World.weather === 'sunny' ? '晴天' : World.weather === 'rain' ? '雨天' : '夜战') + ' · ' + (World.weather === 'sunny' ? '能见度好' : World.weather === 'rain' ? '能见度降低' : '夜暗');
+  $('mSpeed').textContent = '速度 ' + World.speed + 'x';
+  const nz = World.noise;
+  $('mNoise').textContent = '识别环境 ' + (nz < 0.12 ? '良好' : nz < 0.35 ? '嘈杂' : '极差（建议说「重复」）');
+  $('mNoise').className = 'pill' + (nz > 0.35 ? ' warn' : '');
+  const remain = Math.max(0, CFG.missionEnd - World.t);
+  $('ojTime').textContent = '剩余 ' + fmtTime(remain);
+  $('sqCount').textContent = alive + '/' + World.units.filter(u => u.team === 'ally').length;
+  /* 目标 */
+  const objs = World.objState || [];
+  $('objList').innerHTML = objs.map(o =>
+    '<div class="ob ' + (o.done ? 'done' : '') + (o.main ? '' : ' sec') + '">' +
+    '<i>' + (o.main ? (o.done ? '✔' : '◆') : (o.done ? '✔' : '○')) + '</i><span>' +
+    (o.main ? '' : '[次] ') + esc(o.t) + (o.extra ? ' ' + esc(o.extra) : '') + '</span></div>').join('');
+  /* 小队 */
+  const list = World.units.filter(u => u.team === 'ally');
+  $('squadList').innerHTML = list.map(u => {
+    const cls = u.dead ? 'dead' : u.downed ? 'down' : '';
+    const sel = u === World.rangedSel ? ' sel' : '';
+    const key = u.isPlayer ? '你' : (list.indexOf(u) <= 9 ? String(list.indexOf(u)) : '·');
+    return '<div class="sq ' + cls + sel + '" data-id="' + u.id + '">' +
+      '<div style="opacity:.6;font-size:10px">' + key + '</div>' +
+      '<div><div class="nm">' + esc(u.name) + '<i>' + u.role + '</i></div>' +
+      '<div class="bar hp"><i style="width:' + Math.max(0, u.hp / u.maxHp * 100) + '%"></i></div>' +
+      '<div class="bar am"><i style="width:' + clamp(u.magAmmo / u.wpn.mag * 100, 0, 100) + '%"></i></div></div>' +
+      '<div class="st st-' + u.state + '">' + u.state + '</div></div>';
+  }).join('');
+  $('squadList').querySelectorAll('.sq').forEach(el => el.onclick = () => {
+    const u = World.units.find(x => x.id === el.dataset.id);
+    World.rangedSel = u === World.rangedSel ? null : u;
+    if (World.rangedSel) { Panel.callsign = { kind: 'member', id: u.id, label: u.name }; openPanel(true); }
+    refreshPanel();
+  });
+  updateSubTtl(dt);
+}
+function updateSubTtl(dt) {
+  let changed = false;
+  for (let i = World.subs.length - 1; i >= 0; i--) {
+    World.subs[i].t -= dt;
+    if (World.subs[i].t <= 0) { World.subs.splice(i, 1); changed = true; }
+  }
+  if (changed) renderSubs();
+}
+
+/* ---------------------------------------------------------- 指令 / 候选条 */
+let pendingCands = null;
+function showCandCard(cmd) {
+  const el = $('candWrap');
+  if (!el) return;
+  el.style.display = 'block';
+  if (!cmd) { el.style.display = 'none'; return; }
+  $('candBody').innerHTML = '<span class="who">「' + esc(cmd.raw) + '」</span> → ' +
+    (cmd.action ? '<span class="cmd">' + esc(cmd.callsign ? cmd.callsign.label : '默认') + ' · ' + esc(cmd.action.label) +
+      (cmd.loc ? ' → ' + esc(cmd.loc.name) : '') + '</span>' : '<span class="no">未识别</span>') +
+    ' <span style="opacity:.6">置信度 ' + Math.round((cmd.confidence || 0) * 100) + '%</span>' +
+    (cmd.notes && cmd.notes.length ? '<div style="opacity:.7;font-size:11px;margin-top:2px">' + cmd.notes.map(esc).join('；') + '</div>' : '');
+}
+function showCandidates(text, cands) {
+  pendingCands = { text, cands };
+  $('cand').style.display = 'block';
+  $('candList').innerHTML = cands.length ? cands.map((c, i) =>
+    '<div class="c" data-i="' + i + '"><b>' + (i + 1) + '</b>' +
+    esc(c.callsign ? c.callsign.label : '默认') + ' · ' + esc(c.action.label) + (c.loc ? ' → ' + esc(c.loc.name) : '') + '</div>'
+  ).join('') : '<div style="padding:4px 6px;opacity:.7">没有候选，请重说或使用指令面板 [Q]</div>';
+  $('candList').querySelectorAll('.c').forEach(el => el.onclick = () => pickCandidate(+el.dataset.i));
+}
+function pickCandidate(i) {
+  if (!pendingCands || !pendingCands.cands[i]) return;
+  const c = pendingCands.cands[i];
+  $('cand').style.display = 'none';
+  pendingCands = null;
+  c.source = 'confirm';
+  say('你', '确认：' + c.callsign.label + ' ' + c.action.label + (c.loc ? ' ' + c.loc.name : ''), 'cmd');
+  dispatchCommand(c);
+}
+function hideCand() { $('cand').style.display = 'none'; pendingCands = null; }
+
+/* ------------------------------------------------------------ 指令入口层 */
+const AMBUSH_TRIGGERS = ['fire', 'freeFire', 'focusFire', 'suppress', 'coverMe', 'atTank', 'atAPC', 'atJeep', 'atTruck', 'atInf', 'atMG', 'atOfficer', 'grenade', 'smoke', 'rocket', 'detonate'];
+function dispatchCommand(cmd) {
+  if (!cmd || !cmd.action) return;
+  if (!World.triggered && AMBUSH_TRIGGERS.indexOf(cmd.action.id) >= 0) triggerAmbush(cmd.action.id === 'detonate' ? 'mine' : 'order');
+  say('你', '「' + cmd.raw + '」', 'cmd');
+  issueCommand(cmd);
+}
+function handleUtterance(text, asrConf, source) {
+  if (!text || !text.trim()) return;
+  const cmd = Parser.parse(text, { noise: World.noise, asr: asrConf, source, marker: World.marker, typed: source === 'text' });
+  showCandCard(cmd);
+  if (!cmd.action) { showCandidates(text, Parser.candidates(text, cmd)); return; }
+  if (cmd.ok) { hideCand(); dispatchCommand(cmd); }
+  else { showCandidates(text, Parser.candidates(text, cmd)); }
+}
+
+/* ------------------------------------------------------------ 指令面板 */
+const PANEL_ACTIONS = [
+  ['移动', [['前进', 'advance'], ['后退', 'fallback'], ['左移', 'moveLeft'], ['右移', 'moveRight'], ['隐蔽', 'takeCover'], ['散开', 'spread'], ['跟我来', 'followMe'], ['包围', 'flank'], ['去地点', 'gotoPoint'], ['待命', 'hold'], ['撤退', 'retreat'], ['撤离', 'evac'], ['取消', 'cancel']]],
+  ['战斗', [['开火', 'fire'], ['停火', 'ceasefire'], ['集火', 'focusFire'], ['压制', 'suppress'], ['掩护我', 'coverMe'], ['打坦克', 'atTank'], ['打装甲车', 'atAPC'], ['打吉普', 'atJeep'], ['打卡车', 'atTruck'], ['打步兵', 'atInf'], ['打机枪手', 'atMG'], ['打军官', 'atOfficer'], ['投手雷', 'grenade'], ['放烟雾', 'smoke'], ['用火箭筒', 'rocket']]],
+  ['支援', [['救人', 'rescue'], ['拖回来', 'drag'], ['治疗', 'heal'], ['给弹药', 'resupply'], ['搬密码箱', 'grabBox']]],
+  ['报告', [['报告', 'reportAll'], ['位置', 'reportPos'], ['弹药', 'reportAmmo'], ['伤亡', 'reportCas'], ['发现敌人', 'reportContact'], ['剩余敌人', 'reportRemain']]],
+  ['特殊', [['起爆地雷', 'detonate'], ['炸桥', 'blowBridge'], ['重复上一指令', 'repeat']]],
+];
+const Panel = { callsign: { kind: 'all', id: '*', label: '全体' }, loc: null, dir: null };
+function openPanel(open) {
+  const p = $('cmdpanel');
+  if (open === undefined) p.style.display = p.style.display === 'block' ? 'none' : 'block';
+  else p.style.display = open ? 'block' : 'none';
+  const on = p.style.display === 'block';
+  $('bottom').style.bottom = on ? '326px' : '8px';
+  if (on) refreshPanel();
+}
+function refreshPanel() {
+  const cs = [];
+  cs.push(['全体', { kind: 'all', id: '*', label: '全体' }]);
+  for (const g in GROUPS) cs.push([g, { kind: 'group', id: g, label: g }]);
+  for (const r in ROLE_CALL) cs.push([r, { kind: 'role', id: r, label: r }]);
+  for (const m of ROSTER) cs.push([m.name, { kind: 'member', id: m.id, label: m.name }]);
+  const isSel = c => Panel.callsign && Panel.callsign.kind === c.kind && Panel.callsign.id === c.id;
+  let html = '<div><h5>呼号 / 编组</h5>' + cs.map(c =>
+    '<span class="chip ' + (isSel(c[1]) ? 'on' : '') + '" data-k="' + c[1].kind + '" data-i="' + c[1].id + '">' + c[0] + '</span>').join('') + '</div>';
+  html += '<div>';
+  for (const [cat, list] of PANEL_ACTIONS) {
+    html += '<h5>' + cat + '</h5>' + list.map(a =>
+      '<span class="chip" data-a="' + a[1] + '">' + a[0] + '</span>').join('');
+  }
+  html += '</div>';
+  const locs = [['准星标记点', 'marker'], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['D', 'D'], ['E', 'E'], ['F', 'F'], ['G', 'G']];
+  html += '<div><h5>地点 / 方向</h5>' + locs.map(l =>
+    '<span class="chip ' + ((Panel.loc === l[1]) ? 'on' : '') + '" data-l="' + l[1] + '">' + l[0] + '</span>').join('') +
+    [['12点', 0], ['3点', 90], ['6点', 180], ['9点', 270]].map(d =>
+      '<span class="chip ' + ((Panel.dir === d[1]) ? 'on' : '') + '" data-d="' + d[1] + '">方向 ' + d[0] + '</span>').join('') +
+    '<span class="chip" data-l="none">清除</span></div>';
+  $('cmdCols').innerHTML = html;
+  $('cmdCols').querySelectorAll('[data-k]').forEach(el => el.onclick = () => { Panel.callsign = { kind: el.dataset.k, id: el.dataset.i, label: el.textContent }; refreshPanel(); });
+  $('cmdCols').querySelectorAll('[data-l]').forEach(el => el.onclick = () => { Panel.loc = el.dataset.l === 'none' ? null : el.dataset.l; refreshPanel(); });
+  $('cmdCols').querySelectorAll('[data-d]').forEach(el => el.onclick = () => { Panel.dir = +el.dataset.d; refreshPanel(); });
+  $('cmdCols').querySelectorAll('[data-a]').forEach(el => el.onclick = () => panelDispatch(el.dataset.a));
+  $('cmdPrev').textContent = Panel.callsign.label + ' → ' + (Panel.loc ? (Panel.loc === 'marker' ? '准星标记点' : POINTS[Panel.loc].name) : '默认位置') +
+    (Panel.dir != null ? ' / 方向 ' + Panel.dir + '°' : '');
+}
+function panelDispatch(actId) {
+  const A = ACTION_BY_ID[actId]; if (!A) return;
+  let loc = null;
+  if (Panel.loc === 'marker') loc = World.marker ? { key: 'M', name: '准星标记点', x: World.marker.x, y: World.marker.y } : null;
+  else if (Panel.loc) loc = { key: Panel.loc, name: POINTS[Panel.loc].name, x: POINTS[Panel.loc].x, y: POINTS[Panel.loc].y };
+  const cmd = {
+    ok: true, raw: '[面板] ' + Panel.callsign.label + ' ' + A.label + (loc ? ' ' + loc.name : ''), confidence: 1, notes: [],
+    callsign: Object.assign({}, Panel.callsign),
+    action: { id: A.id, label: A.label, kind: A.kind, pri: A.pri, needLoc: !!A.needLoc, target: A.target || null },
+    loc, dir: Panel.dir != null ? { bearing: Panel.dir, raw: '方向' } : null, mentioned: [], source: 'panel', marker: World.marker, noise: World.noise,
+  };
+  dispatchCommand(cmd);
+}
+
+/* ------------------------------------------------------------ 部署面板 */
+const deployBar = document.createElement('div');
+deployBar.className = 'panel'; deployBar.id = 'deployBar';
+deployBar.style.cssText = 'left:50%;transform:translateX(-50%);bottom:196px;width:660px;display:none;z-index:12';
+deployBar.innerHTML =
+  '<div class="hd"><span>部署阶段 · 把 10 人布置在道路两侧（可拖动队员微调）</span><span id="dpHint">潜伏倒计时</span></div>' +
+  '<div class="bd" style="display:flex;gap:6px;flex-wrap:wrap">' +
+  '<button class="btn" id="dpRec">一键推荐部署</button>' +
+  '<button class="btn" id="dpDone">部署完成，进入潜伏</button>' +
+  '<button class="btn dim" id="dpMine">地雷位置：东侧头车 / 西侧尾车</button>' +
+  '</div>' +
+  '<div class="bd" style="border-top:1px solid rgba(150,180,120,.2);font-size:11px;color:#9aa88a">' +
+  '南侧树林/高地：火力组、狙击手　·　北侧壕沟：反坦克组　·　东侧路边：爆破手埋雷　·　后方 C 点：医疗兵与撤退点</div>';
+$('app').appendChild(deployBar);
+const candWrap = document.createElement('div');
+candWrap.className = 'panel'; candWrap.id = 'candWrap';
+candWrap.style.cssText = 'right:8px;bottom:170px;width:390px;display:none;z-index:12';
+candWrap.innerHTML = '<div class="hd"><span>指令解析</span><span id="candClose" style="cursor:pointer">✕</span></div><div class="bd" id="candBody"></div>';
+$('app').appendChild(candWrap);
+
+/* ------------------------------------------------------------ 语音识别 */
+const Mic = { recog: null, listening: false, ok: false, finalText: '' };
+function initVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { Mic.ok = false; return; }
+  try {
+    const r = new SR();
+    r.lang = 'zh-CN'; r.continuous = false; r.interimResults = true; r.maxAlternatives = 3;
+    r.onstart = () => { Mic.listening = true; $('mic').classList.add('on'); $('btnVoice').classList.add('on'); };
+    r.onerror = ev => {
+      Mic.listening = false; $('mic').classList.remove('on'); $('btnVoice').classList.remove('on');
+      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+        Mic.ok = false;
+        say('系统', '麦克风不可用，请用指令面板 [Q] 或文本输入（效果一致）', 'no');
+      } else if (ev.error === 'no-speech') { say('系统', '没听清，请再说一次', 'no'); }
+    };
+    r.onend = () => { Mic.listening = false; $('mic').classList.remove('on'); $('btnVoice').classList.remove('on'); };
+    r.onresult = ev => {
+      let interim = '', finalT = '', conf = 0;
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const res = ev.results[i];
+        if (res.isFinal) { finalT += res[0].transcript; conf = Math.max(conf, res[0].confidence || 0); }
+        else interim += res[0].transcript;
+      }
+      if (interim) { $('txtCmd').value = ''; $('txtCmd').placeholder = '识别中：' + interim; }
+      if (finalT) {
+        $('txtCmd').placeholder = '识别：' + finalT;
+        handleUtterance(finalT, conf, 'voice');
+      }
+    };
+    Mic.recog = r; Mic.ok = true;
+  } catch (e) { Mic.ok = false; }
+}
+function startVoice() {
+  if (!World.started || World.over) return;
+  if (!Mic.recog) { say('系统', '此环境不支持语音识别，请用指令面板 [Q] 或文本输入', 'no'); return; }
+  try { Mic.recog.start(); } catch (e) { }
+}
+function stopVoice() { if (Mic.recog) { try { Mic.recog.stop(); } catch (e) { } } }
+
+/* ------------------------------------------------------------ 输入 */
+const Input = { key: {}, mouse: { x: 0, y: 0 }, mouseWorld: null, mouseDown: false, dragUnit: null, rightDown: false };
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  Input.key[k] = true;
+  if (k === ' ' || k === 'spacebar') { e.preventDefault(); if (World.started && !World.over) { World.paused = !World.paused; toast(World.paused ? '已暂停' : '继续'); } }
+  if (k === 'v') { e.preventDefault(); if (!Mic.listening) startVoice(); }
+  if (k === 'q') { e.preventDefault(); openPanel(); }
+  if (k === 't') { e.preventDefault(); $('txtCmd').focus(); }
+  if (k === 'f') { e.preventDefault(); if (!World.triggered) { triggerAmbush('mine'); } dispatchCommand({ ok: true, raw: '[快捷键] 起爆地雷', confidence: 1, callsign: { kind: 'member', id: 'laobai', label: '老白' }, action: { id: 'detonate', label: '起爆地雷', kind: 'special', pri: 88 }, loc: null, mentioned: [], source: 'key' }); }
+  if (k === 'r') { const p = World.player; if (p && !p.dead && !p.downed) tryReload(p); }
+  if (k === 'g') { const p = World.player; if (p && !p.dead && !p.downed && p.grenades > 0) { p.grenades--; throwGrenade(p, p.x + Math.cos(p.facing) * 130, p.y + Math.sin(p.facing) * 130, 'grenade'); } }
+  if (k === 'e') { /* 拾取为自动 */ }
+  if (k === '+' || k === '=') { World.speed = World.speed >= 4 ? 1 : World.speed * 2; }
+  if (k === '-') { World.speed = World.speed <= 1 ? 4 : World.speed / 2; }
+  if (pendingCands && (k === '1' || k === '2' || k === '3')) { e.preventDefault(); pickCandidate(+k - 1); return; }
+  if (k >= '1' && k <= '9') {
+    const list = World.units.filter(u => u.team === 'ally');
+    const u = list[+k];
+    if (u) { World.rangedSel = World.rangedSel === u ? null : u; if (World.rangedSel) { Panel.callsign = { kind: 'member', id: u.id, label: u.name }; refreshPanel(); } }
+  }
+});
+window.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  Input.key[k] = false;
+  if (k === 'v') stopVoice();
+});
+CV.addEventListener('mousemove', e => {
+  const r = CV.getBoundingClientRect();
+  Input.mouse.x = e.clientX - r.left; Input.mouse.y = e.clientY - r.top;
+  Input.mouseWorld = { x: Input.mouse.x + World.cam.x, y: Input.mouse.y + World.cam.y };
+  if (Input.dragUnit) {
+    const u = Input.dragUnit, m = Input.mouseWorld;
+    if (propBlocked(m.x, m.y, 8) || !passable(m.x, m.y)) return;
+    const z = zoneOf(m.x, m.y);
+    if (z) { u.x = m.x; u.y = m.y; u.homePos = { x: m.x, y: m.y }; }
+    else {
+      const z0 = zoneOf(u.x, u.y) || DEPLOY_ZONES[0];
+      u.x = clamp(m.x, z0.x1, z0.x2); u.y = clamp(m.y, z0.y1, z0.y2);
+      if (!propBlocked(u.x, u.y, 8)) u.homePos = { x: u.x, y: u.y };
+    }
+  }
+});
+CV.addEventListener('mousedown', e => {
+  if (e.button === 0) {
+    if (World.phase === 'DEPLOY' && !World.deployDone) {
+      const u = pickUnitAt(Input.mouseWorld.x, Input.mouseWorld.y);
+      if (u) { Input.dragUnit = u; return; }
+    }
+    Input.mouseDown = true;
+  } else if (e.button === 2) {
+    World.marker = { x: Input.mouseWorld.x, y: Input.mouseWorld.y, t: World.t };
+    say('你', '标记点已设置', 'cmd');
+  }
+});
+window.addEventListener('mouseup', e => { if (e.button === 0) { Input.mouseDown = false; Input.dragUnit = null; } });
+CV.addEventListener('contextmenu', e => e.preventDefault());
+function pickUnitAt(x, y) {
+  let best = null, bd = 22 * 22;
+  for (const u of World.units) {
+    if (u.team !== 'ally' || u.dead) continue;
+    const d = dist2(x, y, u.x, u.y);
+    if (d < bd) { bd = d; best = u; }
+  }
+  return best;
+}
+function zoneOf(x, y) { return DEPLOY_ZONES.find(z => x >= z.x1 && x <= z.x2 && y >= z.y1 && y <= z.y2); }
+
+/* ------------------------------------------------------------ 结算 */
+function showEndScreen(kind, text) {
+  const sc = scoreMission();
+  const s = World.stats;
+  const cas = sc.cas;
+  const rows = [
+    ['任务结果', kind === '成功' ? '<span class="tag ok">成功</span>' : '<span class="tag bad">失败</span> ' + esc(text)],
+    ['评级', '<span class="grade" style="color:' + (sc.g === 'S' ? '#ffd166' : sc.g === 'A' ? '#8ee29a' : sc.g === 'B' ? '#9ad0ff' : sc.g === 'C' ? '#d0c090' : '#ff8a8a') + '">' + sc.g + '</span>'],
+    ['用时', fmtTime(World.t) + '（触发 ' + fmtTime(World.triggerT) + ' 后 ' + fmtTime(World.t - World.triggerT) + '）'],
+    ['己方伤亡', cas + ' 人（阵亡 ' + (s.allyDead || 0) + '）'],
+    ['撤离人数', s.evacCount + ' / 10'],
+    ['摧毁装甲车', s.apcKilled + ' 辆'],
+    ['坦克', s.tankKilled ? '已摧毁' : '未摧毁（未完成主目标）'],
+    ['密码箱', s.boxTaken ? (s.boxEvacuated ? '已带出' : '已获取，未带出') : '未获取'],
+    ['敌方增援', s.reinforceTriggered ? '已触发' : '未触发'],
+    ['击毙指挥官', s.officerKilled ? '是' : '否'],
+    ['地雷', '引爆 ' + s.minesUsed + ' 处' + (s.bridgeBlown ? '，桥梁已炸毁' : '')],
+    ['指挥效率', s.cmdIssued ? Math.round(s.cmdExec / s.cmdIssued * 100) + '%（下达 ' + s.cmdIssued + ' 条，拒绝 ' + s.cmdRefused + ' 条）' : '—'],
+  ];
+  const objs = World.objState || [];
+  $('endCard').innerHTML =
+    '<h1>' + (kind === '成功' ? '任务完成' : '任务失败') + '<small>' + esc(text) + '</small></h1>' +
+    '<div style="display:grid;grid-template-columns:1fr 380px;gap:24px;align-items:start">' +
+    '<div>' + rows.map(r => '<div class="stat"><span style="color:#9aa88a">' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div>' +
+    '<div><h2 style="margin-top:0">目标达成</h2>' +
+    objs.map(o => '<div class="stat" style="border:none;padding:2px 0"><span>' + (o.main ? '◆ ' : '○ [次] ') + esc(o.t) +
+      '</span><b style="color:' + (o.done ? '#8ee29a' : '#ff8a8a') + '">' + (o.done ? '完成' : '未完成') + '</b></div>').join('') +
+    '<h2>评级标准</h2><p style="font-size:11px;line-height:1.6">S：伤亡≤2、8 分钟内完成、未触发增援、摧毁 2 装甲车<br>A：伤亡≤4<br>B：伤亡 5-6<br>C：惨胜（仅 6 人撤离）</p></div>' +
+    '</div>' +
+    '<div class="go"><button class="btn" id="btnAgain">同一变体再来一次</button>' +
+    '<button class="btn" id="btnNew">换个变体（随机车队/天气）</button></div>';
+  $('endScreen').style.display = 'flex';
+  $('btnAgain').onclick = () => { $('endScreen').style.display = 'none'; startGame(World.seed); };
+  $('btnNew').onclick = () => { $('endScreen').style.display = 'none'; startGame((Math.random() * 1e9) | 0); };
+}
+
+/* ------------------------------------------------------------ 主循环 */
+let lastT = performance.now();
+function frame(now) {
+  const raw = Math.min(0.06, (now - lastT) / 1000); lastT = now;
+  if (World.started && !World.paused && !World.over) {
+    const dt = raw * World.speed;
+    const n = Math.min(5, Math.max(1, Math.ceil(dt / 0.022)));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) stepOnce(h);
+  }
+  camFollow(Math.max(raw, 0.001));
+  draw();
+  drawMinimap();
+  updateHUD(Math.max(raw, 0.001));
+  requestAnimationFrame(frame);
+}
+function stepOnce(dt) {
+  World.phase = World.t < CFG.tIntel ? 'INTEL' : (World.deployDone ? 'BATTLE' : 'DEPLOY');
+  if (!World.deployDone && World.t >= CFG.tDeploy) World.deployDone = true;
+  updateFlow(dt);
+  updateVehicles(dt);
+  for (const u of World.units) {
+    if (u.team === 'ally') { if (u.isPlayer) updatePlayer(u, dt); else updateAlly(u, dt); }
+    else updateEnemy(u, dt);
+  }
+  updateProjectiles(dt);
+  updateMines(dt);
+  for (let i = World.smokes.length - 1; i >= 0; i--) {
+    const s = World.smokes[i]; s.t += dt; if (s.t > s.life) World.smokes.splice(i, 1);
+  }
+  for (let i = World.fx.length - 1; i >= 0; i--) {
+    const f = World.fx[i]; f.t += dt; if (f.t > f.life) World.fx.splice(i, 1);
+  }
+  for (let i = World.decals.length - 1; i >= 0; i--) { const d = World.decals[i]; d.t += dt; }
+  World.noise = Math.max(0, World.noise - dt * 0.30);
+  if (World.noiseT > 0) World.noiseT -= dt;
+  updatePhaseName();
+}
+
+/* ------------------------------------------------------------ 启动 */
+function startGame(seed) {
+  World.seed = seed >>> 0;
+  initWorld(World.seed);
+  terrain = buildTerrain();
+  World.smokes = [];
+  World.started = true; World.paused = false; World.over = false;
+  World.deployDone = false; World.t = 0; World.speed = 1;
+  World.cam.x = clamp(World.player.x - view.w / 2, 0, Math.max(0, CFG.W - view.w));
+  World.cam.y = clamp(World.player.y - view.h / 2, 0, Math.max(0, CFG.H - view.h));
+  $('endScreen').style.display = 'none';
+  openPanel(false); deployBar.style.display = 'block'; hideCand();
+  refreshPanel();
+  say('系统', '情报：敌方补给车队将通过山谷公路（东→西），1 坦克、2 装甲车、2 吉普、1 卡车、约 ' + World.infantryTotal + ' 步兵。', 'sys');
+  /* 密码箱在哪辆车上必须告诉玩家：箱子只有在载箱车辆被摧毁（或军官被击毙）时才掉落，
+     不说清楚就会出现「打了一整场却不知道箱子在哪、卡车侥幸溜走直接判负」的死局 */
+  if (World.boxWhere === 'officer') say('系统', '情报：密码箱由车队指挥官随身携带 —— 击毙军官才能拿到。', 'sys');
+  else if (World.boxWhere === 'truck') say('系统', '情报：密码箱锁在那辆卡车的后厢里 —— 帆布车厢挡不住步枪，' +
+    '全队集火就能打爆它（也可以让反坦克组赏它一发火箭）。', 'sys');
+  else say('系统', '情报：密码箱锁在其中一辆装甲车里 —— 得靠火箭弹或炸药才能撬开，' +
+    '让反坦克组盯着装甲车打。', 'sys');
+  say('系统', '你的目标：摧毁坦克、获取密码箱、带至少 6 人撤离。车队约在 2:55 进入地图。', 'sys');
+  say('系统', '天气：' + (World.weather === 'sunny' ? '晴天，能见度好' : World.weather === 'rain' ? '雨天，能见度降低' : '夜战，视线很差'), 'sys');
+}
+$('btnStart').onclick = () => { $('startScreen').style.display = 'none'; startGame((Math.random() * 1e9) | 0); };
+$('btnFast').onclick = () => {
+  $('startScreen').style.display = 'none';
+  startGame((Math.random() * 1e9) | 0);
+  World.t = CFG.tDeploy; World.deployDone = true;
+  say('系统', '已跳过部署，采用推荐部署方案，直接进入潜伏。', 'sys');
+  deployBar.style.display = 'none';
+};
+$('btnVoice').onmousedown = e => { e.preventDefault(); startVoice(); };
+$('btnVoice').onmouseup = e => { e.preventDefault(); stopVoice(); };
+$('btnVoice').onmouseleave = () => stopVoice();
+$('btnCmd').onclick = () => openPanel();
+$('cmdClose').onclick = () => openPanel(false);
+$('btnSend').onclick = () => {
+  const v = $('txtCmd').value; $('txtCmd').value = '';
+  if (v.trim()) handleUtterance(v, 1, 'text');
+};
+$('txtCmd').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const v = e.target.value; e.target.value = ''; if (v.trim()) handleUtterance(v, 1, 'text'); }
+  e.stopPropagation();
+});
+$('txtCmd').addEventListener('keyup', e => e.stopPropagation());
+$('candClose').onclick = () => hideCand();
+$('mSpeed').onclick = () => { World.speed = World.speed >= 4 ? 1 : World.speed * 2; };
+$('mSpeedUp').onclick = () => { World.speed = World.speed >= 4 ? 1 : World.speed * 2; };
+$('dpRec').onclick = () => {
+  for (const r of ROSTER) {
+    const u = World.units.find(x => x.id === r.id); if (!u) continue;
+    const p = RECOMMEND[r.id]; u.x = p.x + rr(-6, 6); u.y = p.y + rr(-6, 6); u.homePos = { x: u.x, y: u.y };
+  }
+  const p0 = World.player; p0.x = RECOMMEND.player.x; p0.y = RECOMMEND.player.y;
+  say('系统', '已按推荐方案部署：火力组与狙击手在南侧高地，反坦克组在北侧岩石，老白在东侧路边埋雷，小满/铁头在 C 点后方。', 'sys');
+};
+$('dpDone').onclick = () => { World.deployDone = true; World.t = Math.max(World.t, CFG.tDeploy); deployBar.style.display = 'none'; say('系统', '部署完成，进入潜伏。注意：不要提前开火。', 'sys'); };
+deployBar.querySelector('#dpMine').onclick = () => {
+  say('系统', '地雷埋设：东侧头车雷（x=' + Math.round(World.mineEast.x) + '）、西侧尾车雷（x=' + Math.round(World.mineWest.x) + '）。按 F 或喊「起爆」引爆。', 'sys');
+};
+window.addEventListener('blur', () => { Input.key = {}; Input.mouseDown = false; stopVoice(); });
+
+resize();
+initVoice();
+World.props = BASE_PROPS;
+World.decals = [];
+World.smokes = [];
+terrain = buildTerrain();
+World.objState = [];
+requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>
